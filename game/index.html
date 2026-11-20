@@ -6,80 +6,127 @@
 <title>Perla Bay — Open World Crime</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1216; font-family: 'Segoe UI', system-ui, sans-serif; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-  #hud-root { position: fixed; inset: 0; pointer-events: none; z-index: 10; color: #f2ede2; }
-  #hud { position: absolute; inset: 0; }
-  #hud-top { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; gap: 12px; align-items: flex-start; }
-  #hud-mission { background: rgba(10, 14, 20, 0.72); border-left: 4px solid #ffd94a; padding: 8px 12px; border-radius: 4px; max-width: 430px; }
-  #hud-mission-name { font-weight: 800; font-size: 15px; letter-spacing: 0.4px; }
-  #hud-mission-stage { font-size: 12.5px; opacity: 0.92; margin-top: 2px; }
-  #hud-mission-timer { font-size: 12px; color: #ffd94a; font-weight: 700; margin-top: 2px; }
-  #hud-stars { margin-left: auto; font-size: 26px; letter-spacing: 2px; text-shadow: 0 2px 6px rgba(0,0,0,0.7); }
-  #hud-stars .star { color: rgba(255,255,255,0.28); }
-  #hud-stars .star.on { color: #ffd94a; }
-  #hud-money { background: rgba(10, 14, 20, 0.72); padding: 8px 14px; border-radius: 4px; font-size: 19px; font-weight: 800; color: #7ddb8a; }
-  #hud-left { position: absolute; left: 12px; top: 108px; display: flex; flex-direction: column; gap: 10px; width: 235px; }
-  #hud-dispatch, #hud-weapons { background: rgba(10, 14, 20, 0.72); border-radius: 4px; padding: 8px 10px; }
-  .hud-title { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: #ffd94a; margin-bottom: 5px; }
-  .dispatch-row { display: flex; gap: 8px; font-size: 12px; padding: 2px 0; }
-  .dispatch-row b { color: #fff; }
-  .dispatch-row span { flex: 1; opacity: 0.85; }
-  .dispatch-row i { font-style: normal; color: #9fd8ff; }
-  .weapon-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 4px; border-radius: 3px; opacity: 0.75; }
-  .weapon-row.active { background: rgba(255, 217, 74, 0.22); opacity: 1; font-weight: 700; }
-  #hud-right { position: absolute; right: 12px; top: 108px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-  #hud-minimap { border-radius: 50%; border: 2px solid #e8e2d2; background: #0e1a24; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-  #hud-speed { text-align: right; background: rgba(10, 14, 20, 0.72); padding: 8px 12px; border-radius: 4px; }
-  #hud-speed-num { font-size: 30px; font-weight: 800; }
-  #hud-speed-unit { font-size: 12px; opacity: 0.8; margin-left: 4px; }
-  #hud-car-name { font-size: 13px; font-weight: 700; color: #ffd94a; }
-  #hud-car-cond { font-size: 11px; opacity: 0.85; }
-  #hud-bottom { position: absolute; left: 12px; right: 12px; bottom: 10px; display: flex; gap: 12px; align-items: flex-end; }
-  #hud-vitals { background: rgba(10, 14, 20, 0.72); border-radius: 4px; padding: 8px 12px; font-size: 12px; font-weight: 700; min-width: 250px; }
-  #hud-vitals .bar { display: inline-block; width: 120px; height: 8px; background: rgba(255,255,255,0.18); border-radius: 4px; overflow: hidden; vertical-align: middle; margin-left: 6px; }
-  #hud-vitals .bar i { display: block; height: 100%; }
-  #hud-health-bar { background: #57c465; width: 100%; }
-  #hud-armour-bar { background: #5a9bd4; width: 50%; }
-  #hud-vitals > div { margin: 3px 0; }
-  #hud-respect-rank { color: #ffd94a; }
-  #hud-dialogue { flex: 1; background: rgba(10, 14, 20, 0.78); border-left: 4px solid #7ddb8a; padding: 10px 14px; border-radius: 4px; font-size: 14px; font-style: italic; opacity: 0; transition: opacity 0.3s; max-width: 520px; }
-  #hud-dialogue.show { opacity: 1; }
-  #hud-radio { background: rgba(10, 14, 20, 0.72); border-radius: 4px; padding: 8px 12px; font-size: 12px; text-align: right; }
-  #hud-radio-station { display: block; font-weight: 800; color: #ffd94a; }
-  #hud-radio-song { opacity: 0.85; }
-  #hud-toast { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 14, 20, 0.85); border: 1px solid #ffd94a; padding: 12px 22px; border-radius: 6px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity 0.3s; text-align: center; max-width: 640px; }
-  #hud-toast.show { opacity: 1; }
-  #hud-hint { position: absolute; bottom: 118px; left: 50%; transform: translateX(-50%); font-size: 13px; background: rgba(10, 14, 20, 0.65); padding: 6px 14px; border-radius: 20px; }
-  .screen { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: linear-gradient(160deg, rgba(26, 18, 44, 0.88), rgba(120, 52, 40, 0.82)); color: #f2ede2; text-align: center; }
-  .screen.hidden { display: none; }
-  .screen h1 { font-size: 64px; letter-spacing: 6px; font-weight: 900; text-shadow: 0 4px 24px rgba(0,0,0,0.6); }
-  .screen h1 span { color: #ffd94a; }
-  .screen p { font-size: 17px; max-width: 560px; opacity: 0.92; line-height: 1.5; }
-  .screen .controls { font-size: 13.5px; background: rgba(0,0,0,0.35); padding: 12px 20px; border-radius: 8px; line-height: 1.9; }
-  .screen button { pointer-events: auto; cursor: pointer; font-size: 20px; font-weight: 800; letter-spacing: 1px; padding: 14px 44px; border: none; border-radius: 8px; background: #ffd94a; color: #1a1216; box-shadow: 0 4px 18px rgba(0,0,0,0.45); }
-  .screen button:hover { background: #ffe27a; }
-  .screen button.ghost { background: transparent; color: #f2ede2; border: 2px solid #f2ede2; font-size: 15px; padding: 10px 26px; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #14101c;
+    font-family: "Segoe UI", system-ui, sans-serif; color: #f0ead8; }
+  #game { display: block; width: 100vw; height: 100vh; }
+  #hud-root { position: fixed; inset: 0; pointer-events: none; font-size: 13px; }
+  .panel { position: absolute; background: rgba(12, 10, 18, 0.72); border: 1px solid rgba(255, 210, 122, 0.25);
+    border-radius: 8px; padding: 8px 10px; backdrop-filter: blur(2px); }
+  .panel h3 { color: #ffd27a; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 4px; }
+  .dim { color: #9a94a8; }
+  .row { display: flex; justify-content: space-between; gap: 14px; line-height: 1.5; }
+  .row.active { background: rgba(255, 210, 122, 0.18); border-radius: 3px; padding: 0 3px; }
+  #hud-mission { top: 12px; left: 12px; width: 290px; }
+  #hud-mission-name { font-weight: 700; font-size: 14px; }
+  #hud-mission-stage { color: #cfc8b8; margin-top: 2px; }
+  #hud-dispatch { top: 108px; left: 12px; width: 230px; }
+  #hud-weapons { top: 246px; left: 12px; width: 150px; }
+  #hud-top-right { position: absolute; top: 12px; right: 12px; text-align: right; width: 164px; }
+  #hud-stars { font-size: 22px; letter-spacing: 2px; }
+  #hud-money { font-size: 20px; font-weight: 800; color: #7dd87d; margin-top: 2px; white-space: nowrap; }
+  #hud-minimap { width: 148px; height: 148px; border-radius: 50%; border: 2px solid rgba(255, 210, 122, 0.5);
+    margin-top: 6px; background: #1a1a24; }
+  #hud-speed { bottom: 12px; right: 12px; text-align: right; min-width: 130px; }
+  #hud-speed-num { font-size: 34px; font-weight: 800; line-height: 1; }
+  #hud-speed small { color: #9a94a8; font-size: 12px; }
+  #hud-car-name { color: #ffd27a; font-weight: 700; font-size: 14px; }
+  #hud-car-cond { color: #9a94a8; }
+  #hud-vitals { bottom: 12px; left: 12px; width: 210px; }
+  .bar { height: 8px; background: #2a2438; border-radius: 4px; overflow: hidden; margin: 3px 0 7px; }
+  .bar > div { height: 100%; }
+  #hud-health-fill { background: #58c96b; width: 100%; }
+  #hud-armour-fill { background: #5a9ac9; width: 60%; }
+  #hud-respect { color: #ffd27a; font-weight: 700; }
+  #hud-radio { bottom: 12px; right: 170px; text-align: right; white-space: pre-line; }
+  #hud-radio b { color: #ffd27a; }
+  #hud-toast { position: absolute; left: 50%; top: 58%; transform: translateX(-50%);
+    background: rgba(12, 10, 18, 0.85); border: 1px solid #ffd27a; border-radius: 8px;
+    padding: 10px 18px; font-size: 16px; font-weight: 700; opacity: 0; transition: opacity 0.4s;
+    white-space: nowrap; }
+  #hud-dialogue { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
+    width: 560px; max-width: 80vw; display: none; }
+  #hud-dialogue-name { color: #ffd27a; font-weight: 700; margin-bottom: 3px; }
+  #hud-controls { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+    color: #9a94a8; font-size: 12px; background: rgba(12, 10, 18, 0.6); padding: 4px 12px; border-radius: 12px; }
+  #hud-time { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(12, 10, 18, 0.72); border: 1px solid rgba(255, 210, 122, 0.25);
+    border-radius: 8px; padding: 5px 12px; font-weight: 700; }
+  #start-screen, #pause-menu { position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px;
+    background: linear-gradient(160deg, rgba(20, 12, 32, 0.94), rgba(60, 20, 40, 0.92)); z-index: 10; }
+  #pause-menu { display: none; }
+  #start-screen h1 { font-size: 54px; letter-spacing: 4px; color: #ffd27a; text-shadow: 0 4px 24px rgba(255, 150, 60, 0.5); }
+  #start-screen h2 { font-size: 17px; color: #e8ddc0; font-weight: 400; }
+  #start-screen button, #pause-menu button { pointer-events: auto; cursor: pointer;
+    background: #ffd27a; color: #241a08; border: none; border-radius: 8px;
+    font-size: 18px; font-weight: 800; padding: 12px 34px; }
+  #start-screen button:hover, #pause-menu button:hover { background: #ffe1a0; }
+  #continue-button { display: none; background: #3a3a4a !important; color: #f0ead8 !important; }
+  #start-screen .keys { color: #b8b0a0; font-size: 13px; line-height: 1.9; text-align: center; }
+  #start-screen .keys b { color: #ffd27a; }
 </style>
-</head>
-<body>
-<canvas id="game"></canvas>
-<div id="hud-root"></div>
-<div id="start-screen" class="screen">
-  <h1>PERLA <span>BAY</span></h1>
-  <p>An open-world crime story in Bahía Perla — a sun-soaked coastal city of beaches, canals, casinos and patrol cars. Eight story missions, police heat, a crew that has your back, and three radio stations for the drive.</p>
-  <div class="controls">WASD move / drive &nbsp;·&nbsp; SHIFT run &nbsp;·&nbsp; F enter / exit car &nbsp;·&nbsp; E crew ability &nbsp;·&nbsp; Q radio &nbsp;·&nbsp; 1–4 weapons &nbsp;·&nbsp; P pause<br>Mouse to look around (click to lock the pointer). Progress saves in this browser.</div>
-  <button id="start-button">START</button>
-  <button id="new-game-button" class="ghost">New Game</button>
-</div>
-<div id="pause-screen" class="screen hidden">
-  <h1>PAUSED</h1>
-  <p>Take a breath. The bay will wait.</p>
-  <button id="resume-button">RESUME</button>
-</div>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.min.js" } }
 </script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud-root">
+  <div class="panel" id="hud-mission">
+    <h3>MISSION</h3>
+    <div id="hud-mission-name">1. First Keys — Celia Mar</div>
+    <div id="hud-mission-stage">Talk to the crew</div>
+  </div>
+  <div class="panel" id="hud-dispatch">
+    <h3>DISPATCH</h3>
+    <div class="dim">All quiet on the bay.</div>
+  </div>
+  <div class="panel" id="hud-weapons">
+    <h3>WEAPONS</h3>
+  </div>
+  <div id="hud-top-right">
+    <div id="hud-stars"><span>☆</span><span>☆</span><span>☆</span><span>☆</span><span>☆</span></div>
+    <div id="hud-money">$250</div>
+    <canvas id="hud-minimap" width="148" height="148"></canvas>
+  </div>
+  <div class="panel" id="hud-vitals">
+    <h3>HEALTH</h3>
+    <div class="bar"><div id="hud-health-fill"></div></div>
+    <h3>ARMOUR</h3>
+    <div class="bar"><div id="hud-armour-fill"></div></div>
+    <div id="hud-respect">RESPECT ROOKIE 0 XP</div>
+  </div>
+  <div class="panel" id="hud-speed">
+    <div><span id="hud-speed-num">0</span> <small>km/h</small></div>
+    <div id="hud-car-name">ON FOOT</div>
+    <div id="hud-car-cond">COND 100%</div>
+  </div>
+  <div class="panel" id="hud-radio"><b>PERLA FM 88.4</b><br>Marina Lights — Los Faros</div>
+  <div id="hud-toast"></div>
+  <div class="panel" id="hud-dialogue">
+    <div id="hud-dialogue-name"></div>
+    <div id="hud-dialogue-text"></div>
+  </div>
+  <div id="hud-controls">WASD drive &middot; SPACE handbrake &middot; F exit &middot; Q radio &middot; 1-4 weapons</div>
+  <div id="hud-time">18:00</div>
+</div>
+
+<div id="start-screen">
+  <h1>PERLA BAY</h1>
+  <h2>Open World Crime — Bahía Perla, a sun-soaked coastal city</h2>
+  <button id="start-button">START</button>
+  <button id="continue-button">CONTINUE</button>
+  <div class="keys">
+    <b>WASD</b> move / drive &nbsp; <b>SHIFT</b> run &nbsp; <b>F</b> enter &amp; exit car &nbsp; <b>E</b> crew ability<br>
+    <b>SPACE</b> handbrake &nbsp; <b>Q</b> radio &nbsp; <b>1–4</b> weapons &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute<br>
+    Eight story missions. Five wanted stars. One bay to own.
+  </div>
+</div>
+<div id="pause-menu">
+  <h1 style="font-size:36px;color:#ffd27a;">PAUSED</h1>
+  <button id="resume-button">RESUME</button>
+  <div class="keys">Progress is saved automatically.</div>
+</div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

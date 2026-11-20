@@ -1,84 +1,64 @@
-// Keyboard + mouse input for Perla Bay.
-// Tracks held keys, edge-triggered presses, and pointer-lock mouse look.
-export function createInput(canvas) {
+// input.js — keyboard + mouse input for Perla Bay.
+// Tracks held keys, edge-triggered presses (consumed each frame) and the
+// mouse delta while the pointer is locked. Arrow keys and Space never scroll.
+
+export function createInput() {
   const keys = new Set();
   const pressed = new Set();
-  let lookDX = 0;
-  let lookDY = 0;
-  let pointerLocked = false;
-
-  function onKeyDown(e) {
+  const onKeyDown = (e) => {
     if (e.repeat) return;
     keys.add(e.code);
     pressed.add(e.code);
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
       e.preventDefault();
     }
-  }
-  function onKeyUp(e) { keys.delete(e.code); }
-  function onMouseMove(e) {
-    if (!pointerLocked) return;
-    lookDX += e.movementX || 0;
-    lookDY += e.movementY || 0;
-  }
-  function onPointerLockChange() {
-    pointerLocked = document.pointerLockElement === canvas;
-  }
-  function onBlur() { keys.clear(); }
-
+  };
+  const onKeyUp = (e) => keys.delete(e.code);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('blur', onBlur);
-  document.addEventListener('pointerlockchange', onPointerLockChange);
+
+  let mouseDX = 0;
+  let mouseDY = 0;
+  let locked = false;
+  const onMouseMove = (e) => {
+    if (locked) {
+      mouseDX += e.movementX;
+      mouseDY += e.movementY;
+    }
+  };
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('pointerlockchange', () => {
+    locked = document.pointerLockElement != null;
+  });
 
   return {
-    isDown(code) { return keys.has(code); },
-    _touchDown(code) { keys.add(code); pressed.add(code); },
-    _touchUp(code) { keys.delete(code); },
-    // Edge-triggered: true once per physical press; consumed by endFrame().
-    wasPressed(code) { return pressed.has(code); },
-    axis() {
-      let x = 0, z = 0;
-      if (keys.has('KeyW') || keys.has('ArrowUp')) z += 1;
-      if (keys.has('KeyS') || keys.has('ArrowDown')) z -= 1;
-      if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
-      if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
-      return { x, z };
+    isDown: (code) => keys.has(code),
+    wasPressed: (code) => pressed.has(code),
+    consumeMouse: () => {
+      const d = { dx: mouseDX, dy: mouseDY };
+      mouseDX = 0;
+      mouseDY = 0;
+      return d;
     },
-    consumeLook() {
-      const out = { dx: lookDX, dy: lookDY };
-      lookDX = 0; lookDY = 0;
-      return out;
+    endFrame: () => pressed.clear(),
+    // Drop every held key (used when the game pauses or the window blurs,
+    // so a key held through the pause cannot stick afterwards).
+    clearKeys: () => {
+      keys.clear();
+      pressed.clear();
     },
-    requestLock() {
-      try {
-        const p = canvas.requestPointerLock();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      } catch (e) { /* headless or denied: mouse look simply stays off */ }
+    lockPointer: () => {
+      const c = document.getElementById('game');
+      if (c && c.requestPointerLock) {
+        try {
+          // requestPointerLock returns a promise in newer browsers; a
+          // rejected lock (no user gesture in headless) must not surface
+          // as an unhandled rejection.
+          const p = c.requestPointerLock();
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch { /* headless or denied */ }
+      }
     },
-    releaseLock() {
-      try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
-    },
-    get locked() { return pointerLocked; },
-    endFrame() { pressed.clear(); },
+    get locked() { return locked; },
   };
-}
-// Touch fallback: on-screen buttons for the rare touch visitor.
-// Desktop is the target; this only keeps the game from being unusable.
-export function createTouchPad(root, input) {
-  if (!('ontouchstart' in window)) return null;
-  const pad = document.createElement('div');
-  pad.id = 'touch-pad';
-  pad.innerHTML = '<button data-k="KeyW">▲</button><button data-k="KeyA">◀</button>' +
-    '<button data-k="KeyS">▼</button><button data-k="KeyD">▶</button>' +
-    '<button data-k="KeyF">F</button>';
-  pad.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:40;display:flex;gap:6px;';
-  pad.querySelectorAll('button').forEach((b) => {
-    b.style.cssText = 'width:44px;height:44px;font-size:18px;border-radius:8px;';
-    b.addEventListener('touchstart', (e) => { e.preventDefault(); input._touchDown(b.dataset.k); });
-    b.addEventListener('touchend', (e) => { e.preventDefault(); input._touchUp(b.dataset.k); });
-  });
-  root.appendChild(pad);
-  return pad;
 }

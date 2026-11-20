@@ -1,151 +1,165 @@
-// Story missions for Perla Bay. Eight chapters, original characters,
-// each with stages, a payout and dialogue shown in the HUD box.
+// missions.js — the eight story missions of Perla Bay.
+// Each mission names its giver, its target on the map and its reward.
+// Dialogue is original writing for this game; the crew are Celia Mar,
+// Tomas Rey, Nadia Sol and Duarte Ferrer, all invented for Bahía Perla.
+
 export const MISSIONS = [
   {
-    id: 1, name: 'First Keys', giver: 'Celia Mar',
-    brief: 'Celia needs wheels. Borrow the Cometa GT parked by the marina and bring it to her.',
-    pay: 400,
-    stages: [
-      { text: 'Get to the marina car park', hint: 'Follow the gold marker — the Cometa GT is waiting.', type: 'goto', x: -138, z: -92 },
-      { text: 'Take the Cometa GT', hint: 'Press F near the car to get in.', type: 'enter' },
-      { text: 'Drive it to Celia at the pier', hint: 'Stay on the roads. The city is watching.', type: 'goto', x: -280, z: 170 },
-    ],
+    id: 1,
+    title: 'First Keys',
+    giver: 'Celia Mar',
+    brief: 'Meet Celia at the pier and take the keys.',
     dialogue: [
-      'Celia Mar: "You made it. I knew the new kid had nerve."',
-      'Celia Mar: "Keep the keys warm — Bahía Perla pays those who move fast."',
+      'Celia Mar: "You made it. The orange one is yours — don\'t scratch it."',
+      'Celia Mar: "Drive it down the beach road. Get a feel for her."',
     ],
+    target: { x: 0, z: 330, label: 'the pier' },
+    reward: 150,
+    wanted: 0,
   },
   {
-    id: 2, name: 'Salt in the Wound', giver: 'Tomas Rey',
-    brief: 'Tomas lost a shipment on the beach road. Recover the crate before the tide takes it.',
-    pay: 550,
-    stages: [
-      { text: 'Reach the beached crate', hint: 'South beach, past the palms.', type: 'goto', x: 60, z: 185 },
-      { text: 'Pick up the crate', hint: 'Walk over it and press E.', type: 'collect' },
-      { text: 'Deliver it to Tomas at the canal bridge', hint: 'East bridge, don’t dawdle.', type: 'goto', x: 92, z: -40 },
-    ],
+    id: 2,
+    title: 'Beach Run',
+    giver: 'Tomas Rey',
+    brief: 'Drive the beach road to the south point.',
     dialogue: [
-      'Tomas Rey: "Salt water ruins everything except a good reputation."',
-      'Tomas Rey: "You carry crates like you were born to it."',
+      'Tomas Rey: "Sand, sea, no patrols before noon. Perfect road."',
+      'Tomas Rey: "Keep it under the limit and nobody looks twice."',
     ],
+    target: { x: -298, z: 310, label: 'the south point' },
+    reward: 200,
+    wanted: 0,
   },
   {
-    id: 3, name: 'Ferris Deal', giver: 'Nadia Sol',
-    brief: 'Nadia is selling tickets under the wheel. Cover her while she counts the take.',
-    pay: 700,
-    stages: [
-      { text: 'Meet Nadia at the ferris wheel', hint: 'East boardwalk, you can’t miss the lights.', type: 'goto', x: 280, z: 144 },
-      { text: 'Hold the spot for 20 seconds', hint: 'Stay inside the gold circle.', type: 'hold', seconds: 20 },
-      { text: 'Escort Nadia to the casino', hint: 'Walk her to the Casino Perla doors.', type: 'goto', x: 150, z: 116 },
-    ],
+    id: 3,
+    title: 'Ferris Deal',
+    giver: 'Nadia Sol',
+    brief: 'Meet Nadia at the ferris wheel.',
     dialogue: [
-      'Nadia Sol: "If anyone asks, we were never here."',
-      'Nadia Sol: "You’ve got steady hands. I like steady."',
+      'Nadia Sol: "Meet me by the wheel when the lights come on."',
+      'Nadia Sol: "Bring the van. The cargo does not like small cars."',
     ],
+    target: { x: -140, z: 300, label: 'the ferris wheel' },
+    reward: 250,
+    wanted: 1,
   },
   {
-    id: 4, name: 'Hot Laps', giver: 'Duarte Ferrer',
-    brief: 'Duarte bets the Faro Sport can lap the marina in under 90 seconds. Prove him right.',
-    pay: 800,
-    stages: [
-      { text: 'Find the Faro Sport', hint: 'Parked by the hotel, gold paint.', type: 'goto', x: 230, z: 92 },
-      { text: 'Take the Faro Sport', hint: 'Press F to get in.', type: 'enter' },
-      { text: 'Lap the marina and return', hint: 'Beat 90 seconds. The clock is running.', type: 'race', seconds: 90, x: 230, z: 92 },
-    ],
+    id: 4,
+    title: 'Casino Run',
+    giver: 'Duarte Ferrer',
+    brief: 'Drive to the Casino Perla and park out front.',
     dialogue: [
-      'Duarte Ferrer: "Fast is a language. You speak it fluently."',
-      'Duarte Ferrer: "Next time we race for real money."',
+      'Duarte Ferrer: "Four stars and they still can\'t catch us!"',
+      'Duarte Ferrer: "Park where the cameras can see you. Style matters."',
     ],
+    target: { x: 150, z: -112, label: 'the casino' },
+    reward: 300,
+    wanted: 1,
   },
   {
-    id: 5, name: 'Night Ferry', giver: 'Celia Mar',
-    brief: 'Move a passenger from the pier to the lighthouse without the patrol noticing.',
-    pay: 900,
-    stages: [
-      { text: 'Pick up the passenger at the pier', hint: 'West pier, end of the boards.', type: 'goto', x: -266, z: 300 },
-      { text: 'Reach the lighthouse quietly', hint: 'Wanted stars make this much harder.', type: 'goto', x: -306, z: 176 },
-    ],
+    id: 5,
+    title: 'Canal Crossing',
+    giver: 'Celia Mar',
+    brief: 'Cross the canal bridge at the north end.',
     dialogue: [
-      'Celia Mar: "Quiet feet, loud heart. That’s the job."',
-      'Celia Mar: "The lighthouse keeper owes me one now."',
+      'Celia Mar: "The bridge at the north end. No stopping halfway."',
+      'Celia Mar: "If the patrol follows, lose them on the far side."',
     ],
+    target: { x: 262, z: 150, label: 'the north bridge' },
+    reward: 350,
+    wanted: 2,
   },
   {
-    id: 6, name: 'Canal Run', giver: 'Tomas Rey',
-    brief: 'Three drops along the canal, two bridges, one very impatient buyer.',
-    pay: 1100,
-    stages: [
-      { text: 'Drop 1 — west bridge', hint: 'Gold marker on the west canal bridge.', type: 'goto', x: -92, z: -40 },
-      { text: 'Drop 2 — east bridge', hint: 'Cross the city to the east bridge.', type: 'goto', x: 92, z: -40 },
-      { text: 'Drop 3 — the casino steps', hint: 'Finish at Casino Perla.', type: 'goto', x: 150, z: 116 },
-    ],
+    id: 6,
+    title: 'Night Patrol',
+    giver: 'Tomas Rey',
+    brief: 'Lose a two-star wanted level.',
     dialogue: [
-      'Tomas Rey: "Three drops, no questions, no names."',
-      'Tomas Rey: "You run this canal like you built it."',
+      'Tomas Rey: "Two stars means they know your car, not your face."',
+      'Tomas Rey: "Break line of sight and stay quiet for a while."',
     ],
+    target: { x: 0, z: 0, label: 'the plaza' },
+    reward: 400,
+    wanted: 2,
   },
   {
-    id: 7, name: 'High Tide', giver: 'Nadia Sol',
-    brief: 'The tide is coming in over the beach road. Get the Vela Van and its cargo to high ground.',
-    pay: 1300,
-    stages: [
-      { text: 'Reach the Vela Van on the sand', hint: 'It’s stuck near the waterline.', type: 'goto', x: 120, z: 190 },
-      { text: 'Take the Vela Van', hint: 'Press F to get in.', type: 'enter' },
-      { text: 'Drive it to the hotel car park', hint: 'High ground, before the tide turns.', type: 'goto', x: 210, z: 116 },
-    ],
+    id: 7,
+    title: 'The Big Score',
+    giver: 'Nadia Sol',
+    brief: 'Reach the plaza with three stars on you.',
     dialogue: [
-      'Nadia Sol: "The sea takes what it wants. Today it gets nothing."',
-      'Nadia Sol: "You drive a van like it’s a speedboat."',
+      'Nadia Sol: "Three stars and the whole bay is watching."',
+      'Nadia Sol: "Get to the plaza. We finish this where everyone can see."',
     ],
+    target: { x: 0, z: 0, label: 'the plaza' },
+    reward: 600,
+    wanted: 3,
   },
   {
-    id: 8, name: 'The Perla Job', giver: 'Duarte Ferrer',
-    brief: 'One last job: lift the casino’s charity float and vanish before the patrol locks the bridges.',
-    pay: 2000,
-    stages: [
-      { text: 'Reach the Casino Perla vault door', hint: 'Back of the casino, after dark.', type: 'goto', x: 150, z: 116 },
-      { text: 'Grab the float', hint: 'Press E at the door.', type: 'collect' },
-      { text: 'Lose the heat and reach the lighthouse', hint: 'Get wanted to zero, then run for the point.', type: 'escape', x: -306, z: 176 },
-    ],
+    id: 8,
+    title: 'King of Perla',
+    giver: 'Duarte Ferrer',
+    brief: 'Reach the north gate with four stars on you.',
     dialogue: [
-      'Duarte Ferrer: "Tonight Bahía Perla learns your name."',
-      'Duarte Ferrer: "Whatever happens — you were never here."',
+      'Duarte Ferrer: "Four stars, one gate, the whole city behind you."',
+      'Duarte Ferrer: "Drive like the bay is yours. Because tonight it is."',
     ],
+    target: { x: 0, z: -298, label: 'the north gate' },
+    reward: 900,
+    wanted: 4,
   },
 ];
 
-export function missionById(id) { return MISSIONS.find((m) => m.id === id) || null; }
-export function nextMission(doneIds) {
-  for (const m of MISSIONS) if (!doneIds.includes(m.id)) return m;
-  return null; // all done
-}
-// Runtime state machine for one mission: stage index, timers, completion.
-export function createMissionState(mission) {
+export function createMissionState(doneIds) {
+  const next = MISSIONS.find((m) => !doneIds.includes(m.id));
   return {
-    mission,
-    stageIndex: 0,
-    stageTime: 0,
-    holdTime: 0,
-    raceStart: 0,
-    done: false,
+    current: next ? next.id : null,
+    stage: 0, // 0 = briefing shown, 1 = en route, 2 = done
+    done: doneIds.slice(),
   };
 }
 
-export function currentStage(state) {
-  return state.mission.stages[state.stageIndex] || null;
+export function getCurrentMission(ms) {
+  if (ms.current == null) return null;
+  return MISSIONS.find((m) => m.id === ms.current) || null;
 }
 
-export function advanceStage(state) {
-  state.stageIndex += 1;
-  state.stageTime = 0;
-  state.holdTime = 0;
-  if (state.stageIndex >= state.mission.stages.length) state.done = true;
-  return state.done;
+// Distance from the player to the current mission target, in metres.
+export function missionDistance(ms, player) {
+  const m = getCurrentMission(ms);
+  if (!m) return null;
+  return Math.hypot(m.target.x - player.x, m.target.z - player.z);
 }
 
-// Toast queue text for mission events.
-export function missionToast(mission, kind) {
-  if (kind === 'start') return 'MISSION: ' + mission.name + ' — ' + mission.giver;
-  if (kind === 'done') return 'MISSION COMPLETE: ' + mission.name + '  +$' + mission.pay;
-  return mission.name;
+// True when the player stands on the target. Mission 6 is special: it
+// completes when the wanted level drops back to zero.
+export function checkMissionComplete(ms, player, wanted) {
+  const m = getCurrentMission(ms);
+  if (!m) return false;
+  if (m.id === 6) return wanted === 0 && ms.stage === 1;
+  return missionDistance(ms, player) < 10;
+}
+
+export function completeMission(ms) {
+  const m = getCurrentMission(ms);
+  if (!m) return null;
+  ms.done.push(m.id);
+  const next = MISSIONS.find((x) => !ms.done.includes(x.id));
+  ms.current = next ? next.id : null;
+  ms.stage = 0;
+  return m;
+}
+
+export function startMission(ms) {
+  if (ms.current != null) ms.stage = 1;
+}
+
+// The mission list line for the HUD: "3. Ferris Deal — Nadia Sol".
+export function missionLabel(m) {
+  return `${m.id}. ${m.title} — ${m.giver}`;
+}
+
+// Free-roam text once every mission is done.
+export function freeRoamText() {
+  return 'FREE ROAM — pick a job';
 }

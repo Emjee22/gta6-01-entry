@@ -1,58 +1,47 @@
-// Save / load for Perla Bay. localStorage only; nothing leaves the browser.
-const KEY = 'perla-bay-save-v1';
+// save.js — localStorage save/load for Perla Bay.
+// Stores money, finished missions, respect, radio station and mute state.
+// A save is plain JSON under one key; a corrupt or foreign value is ignored.
 
-export function defaultSave() {
-  return {
-    money: 250,
-    respect: 0,
-    missionsDone: [],
-    bestSpeed: 0,
-    totalDriven: 0,
-    createdAt: Date.now(),
-  };
-}
+const KEY = 'perla-bay-save-v1';
 
 export function loadSave() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return defaultSave();
-    const data = JSON.parse(raw);
-    if (!data || typeof data !== 'object') return defaultSave();
-    const base = defaultSave();
-    const out = {
-      money: typeof data.money === 'number' ? data.money : base.money,
-      respect: typeof data.respect === 'number' ? data.respect : base.respect,
-      missionsDone: Array.isArray(data.missionsDone)
-        ? data.missionsDone.filter((id) => typeof id === 'number')
-        : [],
-      bestSpeed: typeof data.bestSpeed === 'number' ? data.bestSpeed : 0,
-      totalDriven: typeof data.totalDriven === 'number' ? data.totalDriven : 0,
-      createdAt: typeof data.createdAt === 'number' ? data.createdAt : base.createdAt,
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== 'object') return null;
+    return {
+      money: typeof d.money === 'number' && Number.isFinite(d.money) ? d.money : 250,
+      missionsDone: Array.isArray(d.missionsDone)
+        ? d.missionsDone.filter((n) => Number.isInteger(n)) : [],
+      respect: typeof d.respect === 'number' && Number.isFinite(d.respect) ? d.respect : 0,
+      radioStation: typeof d.radioStation === 'number' ? d.radioStation : 0,
+      muted: d.muted === true,
     };
-    return out;
-  } catch (e) {
-    return defaultSave();
+  } catch {
+    return null;
   }
 }
 
-export function writeSave(save) {
+export function storeSave(state) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(save));
+    localStorage.setItem(KEY, JSON.stringify({
+      money: state.money,
+      missionsDone: state.missionsDone,
+      respect: state.respect,
+      radioStation: state.radioStation,
+      muted: state.muted,
+    }));
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
-// Clear the stored save (used by the "New Game" button on the start screen).
-export function clearSave() {
-  try { localStorage.removeItem(KEY); } catch (e) { /* storage unavailable */ }
-  return defaultSave();
-}
 
-// Merge a partial update into the current save and persist it.
-export function updateSave(patch) {
-  const cur = loadSave();
-  const next = Object.assign({}, cur, patch);
-  writeSave(next);
-  return next;
+export function clearSave() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* storage unavailable */
+  }
 }

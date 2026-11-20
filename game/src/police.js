@@ -1,220 +1,224 @@
-// Police for Perla Bay: wanted stars, patrol cars that chase and ram,
-// a helicopter with a searchlight at 3+ stars, and roadblocks at 4+ stars.
-// Dispatch callsigns are birds and fish — the flavour of the HUD list.
-import * as THREE from '../vendor/three.module.min.js';
-import { makeRng, clamp } from './random.js';
-import { buildCarMesh } from './cars.js';
+// police.js — wanted level, patrol cars, helicopter and roadblocks.
+// Dispatch units carry bird/fish callsigns and a tactic; the HUD lists them
+// with their distance to the player. Heat rises when the player is seen
+// breaking the law and cools when the patrol loses sight of them.
+
+import * as THREE from 'three';
+import { makeCarMesh, CAR_MODELS } from './cars.js';
 
 export const CALLSIGNS = [
-  'AIR-1', 'MARLIN-5', 'IBIS-9', 'GULL-1', 'HERON-2', 'BLOCK-9',
-  'TUNA-3', 'OSPREY-7', 'RAY-4', 'FALCON-2',
+  'AIR-1', 'GULL-1', 'MARLIN-5', 'IBIS-9', 'BLOCK-9',
+  'HERON-2', 'TUNA-7', 'PELICAN-3', 'RAY-4', 'CRANE-6',
 ];
-const TACTICS = ['PURSUIT', 'INTERCEPT', 'CORDON', 'AIR WATCH', 'ROADBLOCK'];
 
-export function createPolice(scene, city) {
-  const rng = makeRng(4242);
+const TACTICS = ['PURSUIT', 'CORDON', 'ROADBLOCK', 'AIR WATCH', 'INTERCEPT'];
+const POLICE_MODEL = CAR_MODELS[3]; // Brisa Sedan body, repainted by makeCarMesh
+
+export function createPolice(scene, rng) {
   return {
-    scene, city, rng,
     wanted: 0,
-    heat: 0,              // 0..100, decays; stars = floor(heat/20)
-    units: [],            // police cars {mesh, x, z, heading, speed, callsign, tactic}
-    heli: null,           // {group, x, y, z, angle}
-    roadblocks: [],       // {mesh, x, z}
-    sirenOn: false,
-    spawnCooldown: 0,
+    heat: 0,
+    units: [],
+    heli: null,
+    roadblock: [],
+    scene,
+    rng,
+    seenTimer: 0,
+    unseenTimer: 0,
+    sirenPhase: 0,
   };
 }
 
-function spawnUnit(pol, x, z) {
-  const mesh = buildCarMesh({ name: 'Patrol', color: 0x1c1e24, top: 110, accel: 24, len: 4.6, w: 1.95 }, true);
+export function setWanted(police, n) {
+  police.wanted = Math.max(0, Math.min(5, Math.round(n)));
+  police.heat = police.wanted * 20;
+}
+
+export function addHeat(police, amount) {
+  police.heat = Math.min(110, police.heat + amount);
+  const level = Math.floor(police.heat / 22);
+  if (level > police.wanted) police.wanted = Math.min(5, level);
+}
+
+function spawnUnit(police, x, z, callsign, tactic) {
+  const mesh = makeCarMesh(POLICE_MODEL, { police: true });
   mesh.position.set(x, 0, z);
-  pol.scene.add(mesh);
+  police.scene.add(mesh);
   const unit = {
     mesh, x, z, heading: 0, speed: 0,
-    callsign: pol.rng.pick(CALLSIGNS),
-    tactic: pol.rng.pick(TACTICS),
-    wobble: pol.rng.range(0, Math.PI * 2),
+    callsign, tactic,
+    wobble: police.rng.range(0, Math.PI * 2),
   };
-  pol.units.push(unit);
+  police.units.push(unit);
   return unit;
 }
 
-function spawnHeli(pol, x, z) {
+function spawnHeli(police, x, z) {
+  if (police.heli) return police.heli;
   const g = new THREE.Group();
   const body = new THREE.Mesh(
-    new THREE.BoxGeometry(3.4, 1.5, 6.4),
-    new THREE.MeshLambertMaterial({ color: 0xe8e8e8 })
+    new THREE.BoxGeometry(3.4, 1.4, 5.2),
+    new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.5 }),
   );
-  body.castShadow = true;
+  body.position.y = 0;
   g.add(body);
   const stripe = new THREE.Mesh(
-    new THREE.BoxGeometry(3.5, 0.5, 6.5),
-    new THREE.MeshLambertMaterial({ color: 0xc23b2e })
+    new THREE.BoxGeometry(3.5, 0.4, 5.3),
+    new THREE.MeshStandardMaterial({ color: 0xc22a2a, roughness: 0.5 }),
   );
-  stripe.position.y = -0.4;
+  stripe.position.y = 0.2;
   g.add(stripe);
   const tail = new THREE.Mesh(
-    new THREE.BoxGeometry(0.7, 0.7, 5),
-    new THREE.MeshLambertMaterial({ color: 0xe8e8e8 })
+    new THREE.BoxGeometry(0.5, 0.5, 4.5),
+    new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.5 }),
   );
-  tail.position.set(0, 0.2, -5.2);
+  tail.position.set(0, 0.2, 4.2);
   g.add(tail);
   const rotor = new THREE.Mesh(
-    new THREE.BoxGeometry(11, 0.12, 0.9),
-    new THREE.MeshLambertMaterial({ color: 0x222222 })
+    new THREE.BoxGeometry(9, 0.12, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }),
   );
-  rotor.position.y = 1.1;
-  rotor.name = 'rotor';
+  rotor.position.y = 1.0;
   g.add(rotor);
-  const lamp = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.7, 1.1, 1.6, 10, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: 0.22, side: THREE.DoubleSide })
+  // Searchlight: a translucent cone pointing down.
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(5, 16, 16, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xfff6c8, transparent: true, opacity: 0.16, side: THREE.DoubleSide }),
   );
-  lamp.position.set(0, -2.2, 2.2);
-  lamp.rotation.x = 0.5;
-  lamp.name = 'searchlight';
-  g.add(lamp);
-  const spot = new THREE.SpotLight(0xfff2b0, 600, 90, 0.32, 0.5, 1.2);
-  spot.position.set(0, -1, 2);
-  spot.target.position.set(0, -20, 8);
-  g.add(spot); g.add(spot.target);
-  g.position.set(x, 26, z);
-  g.scale.setScalar(1.6);
-  pol.scene.add(g);
-  pol.heli = { group: g, x, y: 26, z, angle: 0, rotor };
+  cone.position.y = -8;
+  cone.rotation.x = Math.PI;
+  g.add(cone);
+  g.position.set(x, 24, z);
+  police.scene.add(g);
+  police.heli = { mesh: g, rotor, x, z, y: 24, angle: 0 };
+  return police.heli;
 }
 
-function spawnRoadblock(pol, x, z, heading) {
-  const g = new THREE.Group();
-  for (let i = -1; i <= 1; i++) {
-    const car = buildCarMesh({ name: 'Patrol', color: 0x1c1e24, top: 0, accel: 0, len: 4.6, w: 1.95 }, true);
-    car.position.set(i * 4.4, 0, 0);
-    car.rotation.y = heading + Math.PI / 2;
-    g.add(car);
+// Keep the right number of units for the wanted level, chase the player,
+// fly the helicopter above them and hold a roadblock ahead of them.
+export function updatePolice(dt, police, player) {
+  const rng = police.rng;
+  const want = police.wanted;
+  const targetUnits = want === 0 ? 0 : Math.min(2 + want, 7);
+  // Spawn units at a distance, spread around the player.
+  while (police.units.length < targetUnits) {
+    const a = rng.range(0, Math.PI * 2);
+    const d = rng.range(55, 90);
+    const callsign = CALLSIGNS[police.units.length % CALLSIGNS.length];
+    const tactic = TACTICS[police.units.length % TACTICS.length];
+    spawnUnit(police, player.x + Math.cos(a) * d, player.z + Math.sin(a) * d, callsign, tactic);
   }
-  const barrier = new THREE.Mesh(
-    new THREE.BoxGeometry(12, 1.1, 0.4),
-    new THREE.MeshLambertMaterial({ color: 0xd9a03d })
-  );
-  barrier.position.set(0, 0.9, 2.6);
-  g.add(barrier);
-  g.position.set(x, 0, z);
-  pol.scene.add(g);
-  pol.roadblocks.push({ mesh: g, x, z });
-}
-export function ensureHeli(pol, x, z) {
-  if (!pol.heli) spawnHeli(pol, x, z);
-  return pol.heli;
-}
-
-export function addHeat(pol, amount) {
-  pol.heat = clamp(pol.heat + amount, 0, 100);
-  const stars = Math.floor(pol.heat / 20);
-  if (stars !== pol.wanted) {
-    pol.wanted = stars;
-    return true; // wanted level changed
+  while (police.units.length > targetUnits) {
+    const u = police.units.pop();
+    police.scene.remove(u.mesh);
   }
-  return false;
-}
-
-export function updatePolice(pol, player, dt, time) {
-  // Heat decays slowly; stars follow.
-  pol.heat = clamp(pol.heat - dt * 1.1, 0, 100);
-  pol.wanted = Math.floor(pol.heat / 20);
-  pol.sirenOn = pol.wanted > 0;
-
-  const wantUnits = pol.wanted >= 1 ? Math.min(2 + pol.wanted, 7) : 0;
-  pol.spawnCooldown -= dt;
-  if (pol.units.length < wantUnits && pol.spawnCooldown <= 0) {
-    const a = pol.rng.range(0, Math.PI * 2);
-    const d = 55 + pol.rng.range(0, 25);
-    spawnUnit(pol, player.x + Math.cos(a) * d, player.z + Math.sin(a) * d);
-    pol.spawnCooldown = 1.4;
+  // Helicopter from wanted 3 up.
+  if (want >= 3) {
+    spawnHeli(police, player.x + 12, player.z - 12);
+  } else if (police.heli) {
+    police.scene.remove(police.heli.mesh);
+    police.heli = null;
   }
-  // Too many units: remove the farthest.
-  while (pol.units.length > wantUnits) {
-    const far = pol.units.reduce((a, b) => {
-      const da = (a.x - player.x) ** 2 + (a.z - player.z) ** 2;
-      const db = (b.x - player.x) ** 2 + (b.z - player.z) ** 2;
-      return db > da ? b : a;
-    });
-    pol.scene.remove(far.mesh);
-    pol.units.splice(pol.units.indexOf(far), 1);
+  // Roadblock: two patrol cars across the road ahead of the player.
+  if (want >= 2 && police.roadblock.length === 0) {
+    const fx = Math.sin(player.heading);
+    const fz = Math.cos(player.heading);
+    const bx = player.x + fx * 42;
+    const bz = player.z + fz * 42;
+    for (const side of [-6, 6]) {
+      const px = bx + Math.cos(player.heading) * side;
+      const pz = bz - Math.sin(player.heading) * side;
+      const m = makeCarMesh(POLICE_MODEL, { police: true });
+      m.position.set(px, 0, pz);
+      m.rotation.y = player.heading + Math.PI / 2;
+      police.scene.add(m);
+      police.roadblock.push({ mesh: m, x: px, z: pz });
+    }
+  }
+  if (want < 2 && police.roadblock.length > 0) {
+    for (const b of police.roadblock) police.scene.remove(b.mesh);
+    police.roadblock = [];
   }
 
-  // Chase: steer toward the player, ram on contact.
-  for (const u of pol.units) {
-    const dx = player.x - u.x, dz = player.z - u.z;
+  // Chase: steer toward the player, accelerate, ram gently.
+  for (const u of police.units) {
+    const dx = player.x - u.x;
+    const dz = player.z - u.z;
     const dist = Math.hypot(dx, dz) || 1;
-    const targetHeading = Math.atan2(dx, dz);
-    let dh = targetHeading - u.heading;
+    const wantHeading = Math.atan2(dx, dz);
+    let dh = wantHeading - u.heading;
     while (dh > Math.PI) dh -= Math.PI * 2;
     while (dh < -Math.PI) dh += Math.PI * 2;
-    u.heading += clamp(dh, -2.4 * dt, 2.4 * dt);
-    const top = 15 + pol.wanted * 2.4;
-    u.speed += ((dist > 14 ? top : top * 0.55) - u.speed) * Math.min(1, dt * 1.8);
+    u.heading += Math.max(-2.4 * dt, Math.min(2.4 * dt, dh));
+    const top = 16 + want * 4;
+    u.speed = Math.min(top, u.speed + 14 * dt);
+    // Ease off when right on top of the player so they ram instead of orbit.
+    if (dist < 6) u.speed = Math.max(6, u.speed - 20 * dt);
     u.x += Math.sin(u.heading) * u.speed * dt;
     u.z += Math.cos(u.heading) * u.speed * dt;
     u.mesh.position.set(u.x, 0, u.z);
     u.mesh.rotation.y = u.heading;
-    // Flashing beacons.
-    const on = Math.sin(time * 9 + u.wobble) > 0;
-    const r = u.mesh.getObjectByName('beaconR');
-    const b = u.mesh.getObjectByName('beaconB');
-    if (r) r.material.color.setHex(on ? 0xff2222 : 0x551111);
-    if (b) b.material.color.setHex(on ? 0x111155 : 0x2244ff);
-    if (dist < 3.4 && player.onFoot === false) {
-      // Ram: shove the player's car and add a little heat.
-      player.vx = (player.vx || 0) + (dx / dist) * 6;
-      player.vz = (player.vz || 0) + (dz / dist) * 6;
+    // Flash the light bar.
+    if (u.mesh.userData.lightBar) {
+      u.mesh.userData.lightBar.visible = Math.floor(performance.now() / 280) % 2 === 0;
     }
   }
 
-  // Helicopter at 3+ stars.
-  if (pol.wanted >= 3 && !pol.heli) spawnHeli(pol, player.x + 30, player.z - 30);
-  if (pol.wanted < 3 && pol.heli) {
-    pol.scene.remove(pol.heli.group);
-    pol.heli = null;
-  }
-  if (pol.heli) {
-    const h = pol.heli;
-    h.angle += dt * 0.35;
-    const tx = player.x + Math.cos(h.angle) * 26;
-    const tz = player.z + Math.sin(h.angle) * 26;
-    h.x += (tx - h.x) * Math.min(1, dt * 0.8);
-    h.z += (tz - h.z) * Math.min(1, dt * 0.8);
-    h.y = 24 + Math.sin(time * 0.7) * 1.5;
-    h.group.position.set(h.x, h.y, h.z);
-    h.group.rotation.y = Math.atan2(player.x - h.x, player.z - h.z);
-    if (h.rotor) h.rotor.rotation.y += dt * 22;
+  // Helicopter: circle above the player, rotor spinning.
+  if (police.heli) {
+    const h = police.heli;
+    h.angle += dt * 0.5;
+    h.x = player.x + Math.cos(h.angle) * 14;
+    h.z = player.z + Math.sin(h.angle) * 14;
+    h.mesh.position.set(h.x, h.y, h.z);
+    h.mesh.rotation.y = Math.atan2(player.x - h.x, player.z - h.z);
+    h.rotor.rotation.y += dt * 22;
   }
 
-  // Roadblocks at 4+ stars, ahead of the player.
-  if (pol.wanted >= 4 && pol.roadblocks.length === 0) {
-    const fx = Math.sin(player.heading || 0), fz = Math.cos(player.heading || 0);
-    spawnRoadblock(pol, player.x + fx * 42, player.z + fz * 42, player.heading || 0);
+  // Heat: cools when the player is out of every unit's sight.
+  const nearest = police.units.reduce((m, u) => {
+    const d = Math.hypot(u.x - player.x, u.z - player.z);
+    return Math.min(m, d);
+  }, Infinity);
+  if (want > 0) {
+    if (nearest < 70) {
+      police.unseenTimer = 0;
+      police.seenTimer += dt;
+    } else {
+      police.unseenTimer += dt;
+      if (police.unseenTimer > 9) {
+        police.wanted = Math.max(0, police.wanted - 1);
+        police.heat = police.wanted * 20;
+        police.unseenTimer = 0;
+      }
+    }
   }
-  if (pol.wanted < 4) {
-    for (const rb of pol.roadblocks) pol.scene.remove(rb.mesh);
-    pol.roadblocks = [];
-  }
+  police.sirenPhase += dt;
 }
 
-// Dispatch list for the HUD: callsign, tactic, distance in metres.
-export function dispatchList(pol, player) {
-  const list = [];
-  for (const u of pol.units) {
-    const d = Math.round(Math.hypot(u.x - player.x, u.z - player.z));
-    list.push({ callsign: u.callsign, tactic: u.tactic, dist: d });
+// The dispatch list for the HUD: callsign, tactic, distance in metres.
+export function getDispatch(police, player) {
+  const rows = police.units.map((u) => ({
+    callsign: u.callsign,
+    tactic: u.tactic,
+    dist: Math.round(Math.hypot(u.x - player.x, u.z - player.z)),
+  }));
+  rows.sort((a, b) => a.dist - b.dist);
+  if (police.heli) rows.unshift({ callsign: 'AIR-1', tactic: 'AIR WATCH', dist: 24 });
+  return rows.slice(0, 5);
+}
+
+// Force-spawn units ahead of the player (used by screenshot staging).
+export function forceSpawnAhead(police, player, count) {
+  const rng = police.rng;
+  for (let i = 0; i < count; i++) {
+    const ahead = 35 + i * 9;
+    const side = (i % 2 === 0 ? 1 : -1) * (6 + rng.range(0, 8));
+    const fx = Math.sin(player.heading);
+    const fz = Math.cos(player.heading);
+    const x = player.x + fx * ahead + Math.cos(player.heading) * side;
+    const z = player.z + fz * ahead - Math.sin(player.heading) * side;
+    const callsign = CALLSIGNS[(police.units.length + i) % CALLSIGNS.length];
+    spawnUnit(police, x, z, callsign, 'PURSUIT');
   }
-  if (pol.heli) {
-    const d = Math.round(Math.hypot(pol.heli.x - player.x, pol.heli.z - player.z));
-    list.push({ callsign: 'AIR-1', tactic: 'AIR WATCH', dist: d });
-  }
-  for (const rb of pol.roadblocks) {
-    const d = Math.round(Math.hypot(rb.x - player.x, rb.z - player.z));
-    list.push({ callsign: 'BLOCK-9', tactic: 'ROADBLOCK', dist: d });
-  }
-  list.sort((a, b) => a.dist - b.dist);
-  return list.slice(0, 5);
 }

@@ -1,104 +1,144 @@
-// Screenshot staging for Perla Bay.
-// ?shot=chase|drive|foot|city&seed=N starts the game in a staged scene,
-// runs a short autopilot, then freezes the simulation and sets
-// window.__shotReady = true so the CDP renderer can capture a stable frame.
-// Toast + dialogue are re-shown at freeze time because headless timers
-// would otherwise have expired before the capture.
-import { showToast, showDialogue } from './hud.js';
-import { dispatchList } from './police.js';
+// shots.js — screenshot staging for Perla Bay.
+// ?shot=chase|drive|foot|city&seed=N teleports the player into a composed
+// scene, runs the simulation for a short beat, then freezes it and sets
+// window.__shotReady so the render script knows the frame is stable.
+// The freeze is shot-only; normal play never touches it.
 
-export function shotParams() {
-  const q = new URLSearchParams(location.search);
-  return { shot: q.get('shot') || null, seed: parseInt(q.get('seed') || '7', 10) || 7 };
+import { makeRng } from './random.js';
+import { forceSpawnAhead, setWanted } from './police.js';
+
+export function getShotParams() {
+  const q = new URLSearchParams(window.location.search);
+  const shot = q.get('shot');
+  if (!shot || !['chase', 'drive', 'foot', 'city'].includes(shot)) return null;
+  const seed = parseInt(q.get('seed') || '7', 10) || 7;
+  return { shot, seed };
 }
 
-// Stage one shot. `api` is the object main.js exposes: it carries the live
-// game state and the helpers the autopilot needs.
-export function stageShot(name, api, hud) {
-  const g = api.game;
-  const t0 = performance.now();
-  const cfg = {
-    chase: { wanted: 4, speed: 32, heli: true, dialogue: 'Duarte Ferrer: "Four stars and they still can’t catch us!"', toast: 'WANTED 4★ — lose the patrol or outrun them' },
-    drive: { wanted: 1, speed: 38, heli: false, dialogue: 'Celia Mar: "Beach road, windows down, nobody chasing. This is the life."', toast: null },
-    foot: { wanted: 0, speed: 0, heli: false, dialogue: 'Nadia Sol: "Meet me by the wheel when the lights come on."', toast: 'ON FOOT — the boardwalk at dusk' },
-    city: { wanted: 0, speed: 0, heli: false, dialogue: '', toast: 'BAHÍA PERLA — the whole bay at sunset' },
-  }[name] || {};
-  return { name, cfg, t0, staged: false };
+// Place the player in a car on the beach road, heading south toward the sea.
+function stageInCar(game, modelName) {
+  const p = game.player;
+  const car = game.parked.find((c) => c.model.name === modelName && !c.taken)
+    || game.parked.find((c) => !c.taken);
+  if (!car) return false;
+  car.taken = true;
+  p.car = car;
+  p.onFoot = false;
+  p.x = car.x;
+  p.z = car.z;
+  p.heading = 0; // south, toward the sea (+z)
+  p.speed = 31; // ~112 km/h
+  p.carHeading = 0;
+  return true;
 }
 
-export function runAutopilot(stage, api, hud, dt) {
-  const g = api.game;
-  const p = g.player;
-  if (!stage) return false;
-  const elapsed = (performance.now() - stage.t0) / 1000;
+// Stage one shot, then freeze after `settle` seconds of simulation.
+// Returns true when a shot was staged.
+export function stageShot(game, params) {
+  const rng = makeRng(params.seed * 7919 + 13);
+  const p = game.player;
+  const hud = game.hud;
+  game.shotMode = params.shot;
+  game.shotTimer = 1.5;
 
-  if (stage.name === 'chase') {
-    // Player in a car, speeding EAST along the open beach road; police converge.
-    if (!stage.staged) {
-      api.teleportPlayer(-87, 165, Math.PI / 2);
-      api.enterCar(api.nearestCarTo(-87, 165));
-      // enterCar copies the parked car's random heading; restore the staged one.
-      p.heading = Math.PI / 2;
-      p.speed = 32;
-      api.setWanted(4);
-      api.placePoliceAhead(22, 42, 10);
-      api.pinHeli(24, 5, 9);
-      api.snapCamera();
-      stage.staged = true;
+  if (params.shot === 'chase') {
+    // Along the beach: Faro Sport, four stars, patrol closing in.
+    // Heading PI/2 = east (+x), driving down the sand with the sea on
+    // the right and the city on the left.
+    p.x = -200;
+    p.z = 320;
+    stageInCar(game, 'Faro Sport');
+    p.x = -200;
+    p.z = 320;
+    p.heading = Math.PI / 2;
+    setWanted(game.police, 4);
+    forceSpawnAhead(game.police, p, 4);
+    if (game.police.heli) {
+      game.police.heli.x = p.x + 10;
+      game.police.heli.z = p.z - 10;
+      game.police.heli.y = 18;
     }
-    p.speed = Math.max(p.speed, 30);
-    api.driveForward(dt, 1);
-    api.snapCamera();
-  } else if (stage.name === 'drive') {
-    if (!stage.staged) {
-      api.teleportPlayer(22, 138, 0);
-      api.enterCar(api.nearestCarTo(22, 138));
-      // enterCar copies the parked car's random heading; restore due south.
-      p.heading = 0;
-      p.speed = 38;
-      api.setWanted(1);
-      api.snapCamera();
-      stage.staged = true;
-    }
-    api.driveForward(dt, 0.7);
-    api.snapCamera();
-  } else if (stage.name === 'foot') {
-    if (!stage.staged) {
-      api.teleportPlayer(225, 162, Math.PI / 2);
-      api.setMission(3);
-      api.showDialogue('Nadia Sol: "Meet me by the wheel when the lights come on."');
-      stage.staged = true;
-    }
-    api.walkToward(dt, 250, 152, 3.2);
-  } else if (stage.name === 'city') {
-    if (!stage.staged) {
-      api.setAerialView();
-      stage.staged = true;
-    }
+    game.cameraRig.snapCamera(game.camera, p);
+    hud.toast('WANTED 4★ — lose the patrol or outrun them');
+    hud.dialogue('Duarte Ferrer', 'Four stars and they still can\'t catch us!');
+  } else if (params.shot === 'drive') {
+    // Open sand, Faro Sport, cruising east along the beach.
+    p.x = -100;
+    p.z = 320;
+    stageInCar(game, 'Faro Sport');
+    p.x = -100;
+    p.z = 320;
+    p.heading = Math.PI / 2;
+    setWanted(game.police, 1);
+    game.cameraRig.snapCamera(game.camera, p);
+    hud.toast('CRUISING — Faro Sport on the sand');
+    hud.dialogue('Celia Mar', 'Beach road, windows down, nobody chasing. This is the life.');
+  } else if (params.shot === 'foot') {
+    // On foot on the beach south of the ferris wheel, facing north at it.
+    // Wheel is at (-140, 318); heading PI faces north (-z).
+    p.onFoot = true;
+    p.car = null;
+    p.x = -140;
+    p.z = 336;
+    p.heading = Math.PI;
+    p.speed = 0;
+    game.missions.current = 3;
+    game.missions.stage = 1;
+    setWanted(game.police, 0);
+    game.cameraRig.snapCamera(game.camera, p);
+    hud.toast('ON FOOT — the boardwalk at dusk');
+    hud.dialogue('Nadia Sol', 'Meet me by the wheel when the lights come on.');
+  } else if (params.shot === 'city') {
+    // Aerial: the whole bay at sunset.
+    p.onFoot = true;
+    p.car = null;
+    p.x = 0;
+    p.z = 0;
+    p.heading = Math.PI;
+    p.speed = 0;
+    setWanted(game.police, 0);
+    hud.toast('BAHÍA PERLA — the whole bay at sunset');
+    hud.clearDialogue();
+    game.aerial = true;
   }
-
-  // Freeze after the scene has settled (2.5s chase/drive, 1.8s foot, 1.2s city).
-  const wait = stage.name === 'city' ? 1.2 : stage.name === 'foot' ? 1.8 : 2.5;
-  if (elapsed >= wait) {
-    if (stage.cfg.dialogue) showDialogue(hud, stage.cfg.dialogue, 30000);
-    // Drive toast names the actual car the autopilot took.
-    let toast = stage.cfg.toast;
-    if (stage.name === 'drive') {
-      const carName = g.player.car ? g.player.car.model.name : 'Onda Coupe';
-      toast = 'CRUISING — ' + carName + ' on the sand';
+  // Re-show the staged toast/dialogue at freeze time so they survive the
+  // settle beat even if the HUD redraws them away.
+  game.onFreeze = () => {
+    if (params.shot === 'chase') {
+      hud.toast('WANTED 4★ — lose the patrol or outrun them');
+      hud.dialogue('Duarte Ferrer', 'Four stars and they still can\'t catch us!');
+    } else if (params.shot === 'drive') {
+      hud.toast('CRUISING — Faro Sport on the sand');
+      hud.dialogue('Celia Mar', 'Beach road, windows down, nobody chasing. This is the life.');
+    } else if (params.shot === 'foot') {
+      hud.toast('ON FOOT — the boardwalk at dusk');
+      hud.dialogue('Nadia Sol', 'Meet me by the wheel when the lights come on.');
+    } else if (params.shot === 'city') {
+      hud.toast('BAHÍA PERLA — the whole bay at sunset');
     }
-    if (toast) showToast(hud, toast, 30000);
-    api.refreshHud();
-    g.frozen = true;
+    if (params.shot === 'city') {
+      const { aerialView } = game.renderFns;
+      aerialView(game.camera);
+    } else if (params.shot === 'foot') {
+      // Pull the camera back over the sea and tilt it up so the whole
+      // ferris wheel (40 tall) fits with the player in the foreground.
+      game.camera.position.set(p.x, 5, p.z + 24);
+      game.camera.lookAt(-140, 15, 318);
+    } else {
+      game.cameraRig.snapCamera(game.camera, p);
+    }
+  };
+  return true;
+}
+
+// Tick the shot timer; when it runs out, freeze the sim and flag readiness.
+export function tickShot(game, dt) {
+  if (!game.shotMode) return;
+  game.shotTimer -= dt;
+  if (game.shotTimer <= 0) {
+    game.shotMode = null;
+    if (game.onFreeze) game.onFreeze();
+    game.frozen = true;
     window.__shotReady = true;
-    return true;
   }
-  return false;
-}
-// The shot name also picks the camera preset main.js applies at boot.
-export function shotCamera(name) {
-  if (name === 'city') return { mode: 'aerial', height: 210, dist: 190 };
-  if (name === 'chase') return { mode: 'chase', height: 5.2, dist: 13 };
-  if (name === 'drive') return { mode: 'chase', height: 4.6, dist: 11 };
-  return { mode: 'follow', height: 3.4, dist: 7.5 };
 }
