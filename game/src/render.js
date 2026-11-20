@@ -1,142 +1,96 @@
-// Renderer, sky, lights and fog for Perla Bay.
-//
-// The look is golden hour: a low warm sun, a pink-orange gradient sky, and
-// a soft warm fog that melts the far streets into the sunset. Shadows are
-// on, with a single directional sun so the frame stays fast.
-import * as THREE from 'three';
+// Renderer + camera for Perla Bay. One WebGL renderer, dusk lighting,
+// a chase camera that follows on foot and in a car.
+import * as THREE from '../vendor/three.module.min.js';
 
 export function createRenderer(canvas) {
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    powerPreference: 'high-performance',
-  });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.05;
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
   return renderer;
 }
 
-// A gradient sky dome: deep violet overhead, pink in the middle, burning
-// orange at the horizon. The dome is BackSide so the camera sits inside it.
-function createSkyDome(scene) {
-  const geo = new THREE.SphereGeometry(900, 24, 16);
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    depthWrite: false,
-    fog: false,
-    uniforms: {
-      topColor: { value: new THREE.Color(0x4a3a78) },
-      midColor: { value: new THREE.Color(0xd86a9e) },
-      lowColor: { value: new THREE.Color(0xff9e4a) },
-    },
-    vertexShader: `
-      varying vec3 vPos;
-      void main() {
-        vPos = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 midColor;
-      uniform vec3 lowColor;
-      varying vec3 vPos;
-      void main() {
-        float h = normalize(vPos).y;
-        vec3 col = h > 0.25
-          ? mix(midColor, topColor, smoothstep(0.25, 0.85, h))
-          : mix(lowColor, midColor, smoothstep(-0.08, 0.25, h));
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
-  });
-  const dome = new THREE.Mesh(geo, mat);
-  scene.add(dome);
-  return dome;
-}
-
-export function createSkyAndLights(scene) {
-  const dome = createSkyDome(scene);
-
-  // Low sun from the west: long warm shadows across the streets.
-  const sun = new THREE.DirectionalLight(0xffb36b, 2.4);
-  sun.position.set(-260, 130, -140);
+export function createScene() {
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x8a5a52, 260, 780);
+  // Dusk sun: warm directional key light.
+  const sun = new THREE.DirectionalLight(0xffb37a, 2.4);
+  sun.position.set(-180, 120, -260);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -280;
-  sun.shadow.camera.right = 280;
-  sun.shadow.camera.top = 280;
-  sun.shadow.camera.bottom = -280;
-  sun.shadow.camera.near = 10;
+  sun.shadow.camera.left = -260; sun.shadow.camera.right = 260;
+  sun.shadow.camera.top = 260; sun.shadow.camera.bottom = -260;
   sun.shadow.camera.far = 900;
-  sun.shadow.bias = -0.0004;
   scene.add(sun);
-  scene.add(sun.target);
-
-  // Pink sky light from above, dark warm ground bounce from below.
-  const hemi = new THREE.HemisphereLight(0xffd9e8, 0x3a2f4a, 0.85);
-  scene.add(hemi);
-
-  // Warm haze: the far city dissolves into the sunset.
-  scene.fog = new THREE.Fog(0xe89a6a, 160, 720);
-
-  // The sun disc itself, low over the ocean.
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(26, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffe8b0, fog: false }),
-  );
-  disc.position.set(-420, 95, 420);
-  disc.lookAt(0, 40, 0);
-  scene.add(disc);
-
-  return { dome, sun, hemi, disc };
+  // Cool ambient fill so shadows stay readable.
+  scene.add(new THREE.HemisphereLight(0x8a6a9e, 0x3a2a22, 0.85));
+  return scene;
 }
 
 export function createCamera() {
-  const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 2200);
-  camera.position.set(0, 14, 24);
-  return camera;
+  const cam = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 2000);
+  window.addEventListener('resize', () => {
+    cam.aspect = window.innerWidth / window.innerHeight;
+    cam.updateProjectionMatrix();
+  });
+  return cam;
 }
 
-// Third-person follow camera: trails behind the target, smooths its motion,
-// and looks slightly ahead of the direction of travel. `dist` and `height`
-// let cars use a higher, further camera than walking does. When the camera
-// is far from where it should be (a teleport, a respawn, a staged shot),
-// it snaps there instead of gliding across the city.
-export function followCamera(camera, targetPos, heading, dist, height, dt, state) {
-  const back = new THREE.Vector3(-Math.sin(heading), 0, -Math.cos(heading));
-  const desired = new THREE.Vector3(
-    targetPos.x + back.x * dist,
-    targetPos.y + height,
-    targetPos.z + back.z * dist,
+// Smooth third-person chase camera.
+// player: {x, z, heading, speedKmh, onFoot}; look: {dx, dy} mouse deltas.
+export function updateCamera(cam, player, look, dt, state) {
+  state.yaw -= look.dx * 0.0032;
+  state.pitch = Math.max(-0.5, Math.min(0.55, state.pitch + look.dy * 0.0026));
+  const dist = player.onFoot ? 7.5 : 10.5;
+  const height = player.onFoot ? 3.4 : 4.4;
+  // Camera trails behind the player's facing direction, eased.
+  const wantYaw = player.heading + Math.PI;
+  let dy = wantYaw - state.yaw;
+  while (dy > Math.PI) dy -= Math.PI * 2;
+  while (dy < -Math.PI) dy += Math.PI * 2;
+  state.yaw += dy * Math.min(1, dt * (player.onFoot ? 6 : 3.2));
+  const cx = player.x + Math.sin(state.yaw) * dist;
+  const cz = player.z + Math.cos(state.yaw) * dist;
+  const cy = height + state.pitch * 6;
+  cam.position.set(cx, cy, cz);
+  cam.lookAt(player.x, (player.onFoot ? 1.7 : 1.4), player.z);
+  return state;
+}
+
+export function createCamState() { return { yaw: 0, pitch: 0.12 }; }
+// A gold marker pillar + ring shown at the current mission objective.
+export function createMarker(scene) {
+  const g = new THREE.Group();
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.6, 1.6, 30, 12, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffd94a, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })
   );
-  if (state.pos.distanceTo(desired) > 25) {
-    state.pos.copy(desired);
-  } else {
-    const k = 1 - Math.pow(0.0015, dt);
-    state.pos.lerp(desired, k);
-  }
-  camera.position.copy(state.pos);
-  const look = new THREE.Vector3(
-    targetPos.x + Math.sin(heading) * 6,
-    targetPos.y + 2,
-    targetPos.z + Math.cos(heading) * 6,
+  pillar.position.y = 15;
+  g.add(pillar);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(2.2, 3.2, 24),
+    new THREE.MeshBasicMaterial({ color: 0xffd94a, side: THREE.DoubleSide })
   );
-  camera.lookAt(look);
-}
-
-export function createCameraState(camera) {
-  return { pos: camera.position.clone() };
-}
-
-// Keep the renderer and camera honest when the window is resized.
-export function handleResize(renderer, camera) {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.15;
+  g.add(ring);
+  g.visible = false;
+  scene.add(g);
+  return {
+    group: g,
+    set(x, z, visible) {
+      g.position.set(x, 0, z);
+      g.visible = visible;
+    },
+    pulse(t) {
+      const s = 1 + Math.sin(t * 3) * 0.12;
+      ring.scale.set(s, s, 1);
+    },
+  };
 }

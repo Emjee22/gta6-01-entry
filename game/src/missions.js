@@ -1,330 +1,151 @@
-// The story of Perla Bay: eight missions, from a first stolen car to a
-// five-star escape.
-//
-// Each mission is a list of stages. A stage has a type the manager knows
-// how to check (goto, steal, deliver, escape, collect), a place on the map,
-// a line of dialogue, and optionally a time limit. Rewards are paid in cash
-// and respect XP when the last stage clears.
+// Story missions for Perla Bay. Eight chapters, original characters,
+// each with stages, a payout and dialogue shown in the HUD box.
 export const MISSIONS = [
   {
-    id: 1,
-    title: 'First Keys',
-    brief: 'Celia needs a car. Any car. Take one off the street and bring it to the garage.',
-    reward: { money: 400, xp: 100 },
-    dialogue: [
-      { who: 'Celia Mar', text: 'You want in? Then get me a car. Parked ones are free — just don\u2019t let the PD see you.' },
-      { who: 'Celia Mar', text: 'Press F near a parked car to get in. Drive it to the garage on Coral Street.' },
-    ],
+    id: 1, name: 'First Keys', giver: 'Celia Mar',
+    brief: 'Celia needs wheels. Borrow the Cometa GT parked by the marina and bring it to her.',
+    pay: 400,
     stages: [
-      { type: 'steal', text: 'Steal a parked car (press F near one)' },
-      { type: 'deliver', x: 48, z: 96, text: 'Drive the car to the garage' },
+      { text: 'Get to the marina car park', hint: 'Follow the gold marker — the Cometa GT is waiting.', type: 'goto', x: -138, z: -92 },
+      { text: 'Take the Cometa GT', hint: 'Press F near the car to get in.', type: 'enter' },
+      { text: 'Drive it to Celia at the pier', hint: 'Stay on the roads. The city is watching.', type: 'goto', x: -280, z: 170 },
+    ],
+    dialogue: [
+      'Celia Mar: "You made it. I knew the new kid had nerve."',
+      'Celia Mar: "Keep the keys warm — Bahía Perla pays those who move fast."',
     ],
   },
   {
-    id: 2,
-    title: 'Pearl Run',
-    brief: 'A package is waiting at the pier. Pick it up and deliver it to the north gate before the clock runs out.',
-    reward: { money: 700, xp: 150 },
-    dialogue: [
-      { who: 'Celia Mar', text: 'A package at the pier, a buyer at the north gate. Ninety seconds. Don\u2019t scratch the paint.' },
-    ],
+    id: 2, name: 'Salt in the Wound', giver: 'Tomas Rey',
+    brief: 'Tomas lost a shipment on the beach road. Recover the crate before the tide takes it.',
+    pay: 550,
     stages: [
-      { type: 'goto', x: 120, z: 210, text: 'Pick up the package at the pier' },
-      { type: 'deliver', x: 0, z: -192, timeLimit: 90, text: 'Deliver to the north gate (90s)' },
+      { text: 'Reach the beached crate', hint: 'South beach, past the palms.', type: 'goto', x: 60, z: 185 },
+      { text: 'Pick up the crate', hint: 'Walk over it and press E.', type: 'collect' },
+      { text: 'Deliver it to Tomas at the canal bridge', hint: 'East bridge, don’t dawdle.', type: 'goto', x: 92, z: -40 },
+    ],
+    dialogue: [
+      'Tomas Rey: "Salt water ruins everything except a good reputation."',
+      'Tomas Rey: "You carry crates like you were born to it."',
     ],
   },
   {
-    id: 3,
-    title: 'The Faro Job',
-    brief: 'Tomas spotted a Coral Cruiser in the lot by the casino. Repo it and bring it home.',
-    reward: { money: 900, xp: 200 },
-    dialogue: [
-      { who: 'Tomas Ibarra', text: 'There\u2019s a Coral Cruiser sitting in the lot by the casino. Keys in the visor. It\u2019s ours now.' },
-    ],
+    id: 3, name: 'Ferris Deal', giver: 'Nadia Sol',
+    brief: 'Nadia is selling tickets under the wheel. Cover her while she counts the take.',
+    pay: 700,
     stages: [
-      { type: 'steal', special: 'repo', x: 144, z: 144, text: 'Take the Coral Cruiser from the casino lot' },
-      { type: 'deliver', x: 48, z: 96, text: 'Bring it back to the garage' },
+      { text: 'Meet Nadia at the ferris wheel', hint: 'East boardwalk, you can’t miss the lights.', type: 'goto', x: 280, z: 144 },
+      { text: 'Hold the spot for 20 seconds', hint: 'Stay inside the gold circle.', type: 'hold', seconds: 20 },
+      { text: 'Escort Nadia to the casino', hint: 'Walk her to the Casino Perla doors.', type: 'goto', x: 150, z: 116 },
+    ],
+    dialogue: [
+      'Nadia Sol: "If anyone asks, we were never here."',
+      'Nadia Sol: "You’ve got steady hands. I like steady."',
     ],
   },
   {
-    id: 4,
-    title: 'Static on the Air',
-    brief: 'Nadia needs a radio part from the market. The PD is already watching — lose them after the pickup.',
-    reward: { money: 1100, xp: 250 },
-    dialogue: [
-      { who: 'Nadia Solis', text: 'I need a tuner from the market stall. Grab it, and if the PD shows up, shake them off. Then come back clean.' },
-    ],
+    id: 4, name: 'Hot Laps', giver: 'Duarte Ferrer',
+    brief: 'Duarte bets the Faro Sport can lap the marina in under 90 seconds. Prove him right.',
+    pay: 800,
     stages: [
-      { type: 'goto', x: -96, z: -48, text: 'Pick up the tuner at the market' },
-      { type: 'escape', text: 'Lose the cops — get your wanted level to zero', heat: 45 },
-      { type: 'goto', x: 48, z: 96, text: 'Return to the garage, clean' },
+      { text: 'Find the Faro Sport', hint: 'Parked by the hotel, gold paint.', type: 'goto', x: 230, z: 92 },
+      { text: 'Take the Faro Sport', hint: 'Press F to get in.', type: 'enter' },
+      { text: 'Lap the marina and return', hint: 'Beat 90 seconds. The clock is running.', type: 'race', seconds: 90, x: 230, z: 92 },
+    ],
+    dialogue: [
+      'Duarte Ferrer: "Fast is a language. You speak it fluently."',
+      'Duarte Ferrer: "Next time we race for real money."',
     ],
   },
   {
-    id: 5,
-    title: 'The Casino Drop',
-    brief: 'Cash to the casino, fast. The PD will be on you halfway there — keep driving.',
-    reward: { money: 1400, xp: 300 },
-    dialogue: [
-      { who: 'Celia Mar', text: 'A bag of cash for the casino. Two minutes. The PD will try to stop you — don\u2019t let them.' },
-    ],
+    id: 5, name: 'Night Ferry', giver: 'Celia Mar',
+    brief: 'Move a passenger from the pier to the lighthouse without the patrol noticing.',
+    pay: 900,
     stages: [
-      { type: 'deliver', x: 150, z: 168, timeLimit: 120, text: 'Deliver the cash to Casino Perla (120s)', heat: 30 },
+      { text: 'Pick up the passenger at the pier', hint: 'West pier, end of the boards.', type: 'goto', x: -266, z: 300 },
+      { text: 'Reach the lighthouse quietly', hint: 'Wanted stars make this much harder.', type: 'goto', x: -306, z: 176 },
+    ],
+    dialogue: [
+      'Celia Mar: "Quiet feet, loud heart. That’s the job."',
+      'Celia Mar: "The lighthouse keeper owes me one now."',
     ],
   },
   {
-    id: 6,
-    title: 'Hot Pursuit',
-    brief: 'Four stars and nowhere to hide. Survive the dragnet and lose every unit.',
-    reward: { money: 1800, xp: 400 },
-    dialogue: [
-      { who: 'Captain Ferrer', text: 'All units, the driver is ours. Box them in. Do not let them reach the bridge.' },
-      { who: 'Tomas Ibarra', text: 'Four stars! Cut through the alleys, use the nitro, and don\u2019t stop until the stars are gone.' },
-    ],
+    id: 6, name: 'Canal Run', giver: 'Tomas Rey',
+    brief: 'Three drops along the canal, two bridges, one very impatient buyer.',
+    pay: 1100,
     stages: [
-      { type: 'escape', text: 'Lose the 4-star wanted level', heat: 85 },
+      { text: 'Drop 1 — west bridge', hint: 'Gold marker on the west canal bridge.', type: 'goto', x: -92, z: -40 },
+      { text: 'Drop 2 — east bridge', hint: 'Cross the city to the east bridge.', type: 'goto', x: 92, z: -40 },
+      { text: 'Drop 3 — the casino steps', hint: 'Finish at Casino Perla.', type: 'goto', x: 150, z: 116 },
+    ],
+    dialogue: [
+      'Tomas Rey: "Three drops, no questions, no names."',
+      'Tomas Rey: "You run this canal like you built it."',
     ],
   },
   {
-    id: 7,
-    title: 'The Duarte Debt',
-    brief: 'Ramon Duarte owes the crew. Collect from three of his spots around the city.',
-    reward: { money: 2200, xp: 450 },
-    dialogue: [
-      { who: 'Celia Mar', text: 'Duarte owes us. Three spots: the cafe, the marina office, and the north market. Collect them all.' },
-    ],
+    id: 7, name: 'High Tide', giver: 'Nadia Sol',
+    brief: 'The tide is coming in over the beach road. Get the Vela Van and its cargo to high ground.',
+    pay: 1300,
     stages: [
-      { type: 'collect', x: -48, z: 48, text: 'Collect at the cafe (1/3)' },
-      { type: 'collect', x: 96, z: 192, text: 'Collect at the marina office (2/3)' },
-      { type: 'collect', x: -144, z: -144, text: 'Collect at the north market (3/3)' },
+      { text: 'Reach the Vela Van on the sand', hint: 'It’s stuck near the waterline.', type: 'goto', x: 120, z: 190 },
+      { text: 'Take the Vela Van', hint: 'Press F to get in.', type: 'enter' },
+      { text: 'Drive it to the hotel car park', hint: 'High ground, before the tide turns.', type: 'goto', x: 210, z: 116 },
+    ],
+    dialogue: [
+      'Nadia Sol: "The sea takes what it wants. Today it gets nothing."',
+      'Nadia Sol: "You drive a van like it’s a speedboat."',
     ],
   },
   {
-    id: 8,
-    title: 'Perla Rising',
-    brief: 'The finale. Steal Duarte\u2019s Arena Roadster, pick up Tomas and Nadia, and escape a five-star dragnet to the pier.',
-    reward: { money: 5000, xp: 1000 },
-    dialogue: [
-      { who: 'Celia Mar', text: 'Tonight we take everything. Duarte\u2019s Roadster is at the pier lot. Get Tomas and Nadia, then run.' },
-      { who: 'Ramon Duarte', text: 'You touch my car and the whole PD will be on you. Five stars. Let\u2019s see you drive, kid.' },
-    ],
+    id: 8, name: 'The Perla Job', giver: 'Duarte Ferrer',
+    brief: 'One last job: lift the casino’s charity float and vanish before the patrol locks the bridges.',
+    pay: 2000,
     stages: [
-      { type: 'steal', special: 'finale', x: 120, z: 210, text: 'Steal Duarte\u2019s Arena Roadster at the pier' },
-      { type: 'goto', x: -48, z: -96, text: 'Pick up Tomas (1/2)', inCar: true },
-      { type: 'goto', x: 96, z: -48, text: 'Pick up Nadia (2/2)', inCar: true },
-      { type: 'escape', text: 'Escape the 5-star dragnet — lose every unit', heat: 100 },
-      { type: 'deliver', x: 120, z: 226, text: 'Deliver the Roadster to the end of the pier' },
+      { text: 'Reach the Casino Perla vault door', hint: 'Back of the casino, after dark.', type: 'goto', x: 150, z: 116 },
+      { text: 'Grab the float', hint: 'Press E at the door.', type: 'collect' },
+      { text: 'Lose the heat and reach the lighthouse', hint: 'Get wanted to zero, then run for the point.', type: 'escape', x: -306, z: 176 },
+    ],
+    dialogue: [
+      'Duarte Ferrer: "Tonight Bahía Perla learns your name."',
+      'Duarte Ferrer: "Whatever happens — you were never here."',
     ],
   },
 ];
 
-import * as THREE from 'three';
-import { createCar, CAR_DEFS } from './cars.js';
-
-// The mission manager: runs one mission at a time, shows a glowing beacon
-// at the current objective, counts timers, and pays rewards. The game wires
-// its callbacks (onStage, onComplete, onFail, onDialogue) to the HUD.
-export function createMissions(scene, city, police) {
-  // The beacon: a vertical beam of light plus a ring on the ground, marking
-  // the current objective from anywhere in the city.
-  const marker = new THREE.Group();
-  const beam = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.6, 1.6, 60, 12, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }),
-  );
-  beam.position.y = 30;
-  marker.add(beam);
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(2.4, 3.4, 24),
-    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.15;
-  marker.add(ring);
-  marker.visible = false;
-  scene.add(marker);
-
-  let currentIndex = -1;
-  let stageIndex = 0;
-  let stageTimer = 0;
-  let stageTimeLimit = 0;
-  let specialCar = null;
-  let active = false;
-  let completedCount = 0;
-
-  const hooks = {
-    onStage: () => {},
-    onComplete: () => {},
-    onFail: () => {},
-    onDialogue: () => {},
-  };
-
-  function setMarker(x, z) {
-    marker.position.set(x, 0, z);
-    marker.visible = true;
-  }
-
-  function hideMarker() {
-    marker.visible = false;
-  }
-
-  function stage() {
-    if (currentIndex < 0) return null;
-    return MISSIONS[currentIndex].stages[stageIndex];
-  }
-
-  function startStage(now) {
-    const s = stage();
-    if (!s) return;
-    stageTimeLimit = s.timeLimit || 0;
-    stageTimer = stageTimeLimit;
-    if (s.x !== undefined) setMarker(s.x, s.z);
-    else hideMarker();
-    // Special cars: the repo target and Duarte's Roadster are spawned by
-    // the mission and parked at their stage location.
-    if (s.special === 'repo') {
-      const def = CAR_DEFS.find((d) => d.name === 'Coral Cruiser');
-      specialCar = createCar(scene, def, s.x, s.z, Math.PI / 2);
-      specialCar.condition = 90;
-    } else if (s.special === 'finale') {
-      const def = CAR_DEFS.find((d) => d.name === 'Arena Roadster');
-      specialCar = createCar(scene, def, s.x, s.z, -Math.PI / 2);
-      specialCar.condition = 100;
-    }
-    if (s.heat) police.addHeat(s.heat, now || 0);
-    hooks.onStage(MISSIONS[currentIndex].title, stageIndex + 1, MISSIONS[currentIndex].stages.length, s.text, stageTimeLimit);
-  }
-
-  function start(index, now) {
-    if (index < 0 || index >= MISSIONS.length) return false;
-    // A restart cleans up the previous attempt's special car first.
-    if (specialCar) {
-      scene.remove(specialCar.mesh);
-      specialCar = null;
-    }
-    hideMarker();
-    currentIndex = index;
-    stageIndex = 0;
-    active = true;
-    const mission = MISSIONS[index];
-    hooks.onDialogue(mission.dialogue);
-    startStage(now);
-    return true;
-  }
-
-  function advance(now) {
-    stageIndex += 1;
-    const mission = MISSIONS[currentIndex];
-    if (stageIndex >= mission.stages.length) {
-      active = false;
-      hideMarker();
-      completedCount += 1;
-      if (specialCar) {
-        scene.remove(specialCar.mesh);
-        specialCar = null;
-      }
-      hooks.onComplete(mission);
-      return;
-    }
-    startStage(now);
-  }
-
-  function fail(reason) {
-    active = false;
-    hideMarker();
-    if (specialCar) {
-      scene.remove(specialCar.mesh);
-      specialCar = null;
-    }
-    hooks.onFail(MISSIONS[currentIndex], reason);
-  }
-
-  function update(dt, ctx) {
-    if (!active) return;
-    const s = stage();
-    if (!s) return;
-    if (stageTimeLimit > 0) {
-      stageTimer -= dt;
-      if (stageTimer <= 0) {
-        fail('Time ran out.');
-        return;
-      }
-    }
-    const p = ctx.playerPos;
-    const dist = s.x !== undefined ? Math.hypot(p.x - s.x, p.z - s.z) : Infinity;
-    switch (s.type) {
-      case 'goto': {
-        const needCar = !!s.inCar;
-        if (dist < 6 && (!needCar || ctx.inCar)) advance(ctx.time);
-        break;
-      }
-      case 'steal': {
-        if (s.special) {
-          if (ctx.inCar && ctx.car === specialCar) advance(ctx.time);
-        } else if (ctx.inCar) {
-          advance(ctx.time);
-        }
-        break;
-      }
-      case 'deliver': {
-        if (ctx.inCar && dist < 7) advance(ctx.time);
-        break;
-      }
-      case 'collect': {
-        if (dist < 5) advance(ctx.time);
-        break;
-      }
-      case 'escape': {
-        if (police.wanted === 0) advance(ctx.time);
-        break;
-      }
-      default:
-        break;
-    }
-    // The beacon pulses so it is easy to spot.
-    if (marker.visible) {
-      const pulse = 0.6 + Math.sin(performance.now() / 240) * 0.25;
-      beam.material.opacity = 0.28 * pulse;
-      ring.scale.setScalar(1 + Math.sin(performance.now() / 240) * 0.08);
-    }
-  }
-
+export function missionById(id) { return MISSIONS.find((m) => m.id === id) || null; }
+export function nextMission(doneIds) {
+  for (const m of MISSIONS) if (!doneIds.includes(m.id)) return m;
+  return null; // all done
+}
+// Runtime state machine for one mission: stage index, timers, completion.
+export function createMissionState(mission) {
   return {
-    hooks,
-    marker,
-    get active() {
-      return active;
-    },
-    get currentIndex() {
-      return currentIndex;
-    },
-    get completedCount() {
-      return completedCount;
-    },
-    get specialCar() {
-      return specialCar;
-    },
-    get stageTimer() {
-      return stageTimer;
-    },
-    get stageIndex() {
-      return stageIndex;
-    },
-    get stageTimeLimit() {
-      return stageTimeLimit;
-    },
-    current() {
-      return currentIndex >= 0 ? MISSIONS[currentIndex] : null;
-    },
-    currentStage() {
-      return stage();
-    },
-    start,
-    update,
-    fail,
-    // The player was busted: the active mission fails.
-    onBusted() {
-      if (active) fail('Busted by the Perla PD.');
-    },
+    mission,
+    stageIndex: 0,
+    stageTime: 0,
+    holdTime: 0,
+    raceStart: 0,
+    done: false,
   };
+}
+
+export function currentStage(state) {
+  return state.mission.stages[state.stageIndex] || null;
+}
+
+export function advanceStage(state) {
+  state.stageIndex += 1;
+  state.stageTime = 0;
+  state.holdTime = 0;
+  if (state.stageIndex >= state.mission.stages.length) state.done = true;
+  return state.done;
+}
+
+// Toast queue text for mission events.
+export function missionToast(mission, kind) {
+  if (kind === 'start') return 'MISSION: ' + mission.name + ' — ' + mission.giver;
+  if (kind === 'done') return 'MISSION COMPLETE: ' + mission.name + '  +$' + mission.pay;
+  return mission.name;
 }

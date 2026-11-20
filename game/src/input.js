@@ -1,157 +1,84 @@
-// Keyboard and mouse input for Perla Bay.
-//
-// One object owns every key and mouse button. The game loop reads it once a
-// frame: isDown for held keys, pressed for edge-triggered actions (cleared by
-// endFrame), and takeMouse for the pointer movement accumulated since the
-// last frame. Pointer lock gives real mouse-look on desktop; dragging with
-// the mouse held down works as a fallback (and in browsers without lock).
+// Keyboard + mouse input for Perla Bay.
+// Tracks held keys, edge-triggered presses, and pointer-lock mouse look.
 export function createInput(canvas) {
-  const down = new Set();
-  const hit = new Set();
-  let mouseX = 0;
-  let mouseY = 0;
-  let mouseDX = 0;
-  let mouseDY = 0;
-  let mouseDown = false;
-  let locked = false;
-  let dragging = false;
-  let lastX = 0;
-  let lastY = 0;
+  const keys = new Set();
+  const pressed = new Set();
+  let lookDX = 0;
+  let lookDY = 0;
+  let pointerLocked = false;
 
-  const GAME_KEYS = new Set([
-    'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyE', 'KeyQ', 'KeyR',
-    'KeyM', 'KeyP', 'KeyC', 'KeyT', 'Space', 'ShiftLeft', 'ShiftRight',
-    'Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-    'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Enter',
-  ]);
-
-  function onKeyDown(event) {
-    if (GAME_KEYS.has(event.code)) event.preventDefault();
-    if (!event.repeat) {
-      down.add(event.code);
-      hit.add(event.code);
+  function onKeyDown(e) {
+    if (e.repeat) return;
+    keys.add(e.code);
+    pressed.add(e.code);
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
+      e.preventDefault();
     }
   }
-
-  function onKeyUp(event) {
-    down.delete(event.code);
+  function onKeyUp(e) { keys.delete(e.code); }
+  function onMouseMove(e) {
+    if (!pointerLocked) return;
+    lookDX += e.movementX || 0;
+    lookDY += e.movementY || 0;
   }
-
-  function onBlur() {
-    down.clear();
-    hit.clear();
-    dragging = false;
+  function onPointerLockChange() {
+    pointerLocked = document.pointerLockElement === canvas;
   }
+  function onBlur() { keys.clear(); }
 
-  function onMouseDown(event) {
-    mouseDown = true;
-    if (event.button === 0) hit.add('Mouse0');
-    if (event.button === 2) hit.add('Mouse2');
-    if (!locked) {
-      dragging = true;
-      lastX = event.clientX;
-      lastY = event.clientY;
-    }
-  }
-
-  function onMouseUp() {
-    mouseDown = false;
-    dragging = false;
-  }
-
-  function onMouseMove(event) {
-    mouseX = event.clientX;
-    mouseY = event.clientY;
-    if (locked) {
-      mouseDX += event.movementX || 0;
-      mouseDY += event.movementY || 0;
-    } else if (dragging) {
-      mouseDX += event.clientX - lastX;
-      mouseDY += event.clientY - lastY;
-      lastX = event.clientX;
-      lastY = event.clientY;
-    }
-  }
-
-  function onLockChange() {
-    locked = document.pointerLockElement === canvas;
-  }
-
-  function onContextMenu(event) {
-    event.preventDefault();
-  }
-
-  canvas.addEventListener('mousedown', onMouseDown);
-  window.addEventListener('mouseup', onMouseUp);
-  window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('blur', onBlur);
-  document.addEventListener('pointerlockchange', onLockChange);
-  canvas.addEventListener('contextmenu', onContextMenu);
+  document.addEventListener('pointerlockchange', onPointerLockChange);
 
   return {
-    // True while the key (event.code, e.g. 'KeyW') is held down.
-    isDown(code) {
-      return down.has(code);
+    isDown(code) { return keys.has(code); },
+    _touchDown(code) { keys.add(code); pressed.add(code); },
+    _touchUp(code) { keys.delete(code); },
+    // Edge-triggered: true once per physical press; consumed by endFrame().
+    wasPressed(code) { return pressed.has(code); },
+    axis() {
+      let x = 0, z = 0;
+      if (keys.has('KeyW') || keys.has('ArrowUp')) z += 1;
+      if (keys.has('KeyS') || keys.has('ArrowDown')) z -= 1;
+      if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1;
+      if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1;
+      return { x, z };
     },
-    // True only on the frame the key was first pressed.
-    pressed(code) {
-      return hit.has(code);
+    consumeLook() {
+      const out = { dx: lookDX, dy: lookDY };
+      lookDX = 0; lookDY = 0;
+      return out;
     },
-    // Pointer movement accumulated since the last takeMouse call.
-    takeMouse() {
-      const dx = mouseDX;
-      const dy = mouseDY;
-      mouseDX = 0;
-      mouseDY = 0;
-      return { dx, dy };
+    requestLock() {
+      try {
+        const p = canvas.requestPointerLock();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } catch (e) { /* headless or denied: mouse look simply stays off */ }
     },
-    get mouseDown() {
-      return mouseDown;
+    releaseLock() {
+      try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
     },
-    get locked() {
-      return locked;
-    },
-    get mouseX() {
-      return mouseX;
-    },
-    get mouseY() {
-      return mouseY;
-    },
-    // Ask the browser to lock the pointer to the canvas (mouse-look).
-    lockPointer() {
-      if (canvas.requestPointerLock) {
-        try {
-          canvas.requestPointerLock();
-        } catch (err) {
-          // Pointer lock is a nicety, not a requirement.
-        }
-      }
-    },
-    unlockPointer() {
-      if (document.exitPointerLock) document.exitPointerLock();
-    },
-    // Call once at the end of each frame: clears edge-triggered presses.
-    endFrame() {
-      hit.clear();
-    },
+    get locked() { return pointerLocked; },
+    endFrame() { pressed.clear(); },
   };
 }
-
-// Convenience: the four movement keys as a single -1..1 pair, already
-// normalized, so the player code never repeats the same key checks.
-export function moveVector(input) {
-  let x = 0;
-  let y = 0;
-  if (input.isDown('KeyW') || input.isDown('ArrowUp')) y += 1;
-  if (input.isDown('KeyS') || input.isDown('ArrowDown')) y -= 1;
-  if (input.isDown('KeyA') || input.isDown('ArrowLeft')) x -= 1;
-  if (input.isDown('KeyD') || input.isDown('ArrowRight')) x += 1;
-  const len = Math.hypot(x, y);
-  if (len > 1) {
-    x /= len;
-    y /= len;
-  }
-  return { x, y };
+// Touch fallback: on-screen buttons for the rare touch visitor.
+// Desktop is the target; this only keeps the game from being unusable.
+export function createTouchPad(root, input) {
+  if (!('ontouchstart' in window)) return null;
+  const pad = document.createElement('div');
+  pad.id = 'touch-pad';
+  pad.innerHTML = '<button data-k="KeyW">▲</button><button data-k="KeyA">◀</button>' +
+    '<button data-k="KeyS">▼</button><button data-k="KeyD">▶</button>' +
+    '<button data-k="KeyF">F</button>';
+  pad.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:40;display:flex;gap:6px;';
+  pad.querySelectorAll('button').forEach((b) => {
+    b.style.cssText = 'width:44px;height:44px;font-size:18px;border-radius:8px;';
+    b.addEventListener('touchstart', (e) => { e.preventDefault(); input._touchDown(b.dataset.k); });
+    b.addEventListener('touchend', (e) => { e.preventDefault(); input._touchUp(b.dataset.k); });
+  });
+  root.appendChild(pad);
+  return pad;
 }

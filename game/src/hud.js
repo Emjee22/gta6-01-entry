@@ -1,316 +1,160 @@
-// The HUD for Perla Bay.
-//
-// A dense DOM overlay, updated every frame from the game state: mission
-// panel, wanted stars, money, the police dispatch list, weapon slots, a
-// circular minimap, speed and car condition, health and armour, respect,
-// dialogue with portraits, and the radio. Text is only rewritten when its
-// value changes, so the overlay costs almost nothing per frame.
-export function createHud(doc) {
-  const $ = (id) => doc.getElementById(id);
-  const els = {
-    missionPanel: $('mission-panel'),
-    missionTitle: $('mission-title'),
-    missionStage: $('mission-stage'),
-    missionText: $('mission-text'),
-    missionTimer: $('mission-timer'),
-    missionNext: $('mission-next'),
-    wantedStars: $('wanted-stars'),
-    money: $('money'),
-    dispatchList: $('dispatch-list'),
-    weaponSlots: [$('weapon-0'), $('weapon-1'), $('weapon-2'), $('weapon-3')],
-    minimap: $('minimap'),
-    speed: $('speed'),
-    carName: $('car-name'),
-    carConditionFill: $('car-condition-fill'),
-    carConditionText: $('car-condition-text'),
-    healthFill: $('health-fill'),
-    armourFill: $('armour-fill'),
-    respectRank: $('respect-rank'),
-    respectXpFill: $('respect-xp-fill'),
-    dialogue: $('dialogue'),
-    dialogueWho: $('dialogue-who'),
-    dialogueText: $('dialogue-text'),
-    dialoguePortrait: $('dialogue-portrait'),
-    radioStation: $('radio-station'),
-    radioSong: $('radio-song'),
-    prompt: $('prompt'),
-    toast: $('toast'),
-    startScreen: $('start-screen'),
-    pauseScreen: $('pause-screen'),
-    bustedScreen: $('busted-screen'),
-    bustedText: $('busted-text'),
-    speedWrap: $('speed-wrap'),
-    carPanel: $('car-panel'),
-  };
-  const minimapCtx = els.minimap ? els.minimap.getContext('2d') : null;
-  const last = {};
-  let toastTimer = null;
-
-  function setText(el, key, value) {
-    if (!el) return;
-    if (last[key] !== value) {
-      last[key] = value;
-      el.textContent = value;
-    }
-  }
-
-  function setStars(count) {
-    if (!els.wantedStars || last.stars === count) return;
-    last.stars = count;
-    const stars = els.wantedStars.querySelectorAll('.star');
-    stars.forEach((s, i) => s.classList.toggle('lit', i < count));
-  }
-
-  // The circular minimap: roads, beach, ocean, buildings, the player, the
-  // police, traffic and the mission beacon, all drawn from live positions.
-  function drawMinimap(state) {
-    if (!minimapCtx) return;
-    const size = els.minimap.width;
-    const R = size / 2;
-    const scale = size / 560;
-    const toMap = (x, z) => [R + x * scale, R + z * scale];
-    const ctx = minimapCtx;
-    ctx.clearRect(0, 0, size, size);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(R, R, R - 1, 0, Math.PI * 2);
-    ctx.clip();
-    // Ocean and beach.
-    ctx.fillStyle = '#2a6f9e';
-    ctx.fillRect(0, 0, size, size);
-    const [, beachY] = toMap(0, 200);
-    ctx.fillStyle = '#e8c98f';
-    ctx.fillRect(0, beachY, size, size - beachY);
-    // City ground.
-    ctx.fillStyle = '#4a4a52';
-    const [gx, gz] = toMap(-240, -240);
-    ctx.fillRect(gx, gz, 480 * scale, 440 * scale);
-    // Roads.
-    ctx.strokeStyle = '#2e2e36';
-    ctx.lineWidth = 5;
-    for (const c of [-192, -144, -96, -48, 0, 48, 96, 144, 192]) {
-      const [x1, y1] = toMap(c, -240);
-      const [x2, y2] = toMap(c, 200);
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-      const [hx1, hy1] = toMap(-240, c);
-      const [hx2, hy2] = toMap(240, c);
-      ctx.beginPath();
-      ctx.moveTo(hx1, hy1);
-      ctx.lineTo(hx2, hy2);
-      ctx.stroke();
-    }
-    // Buildings as small blocks.
-    if (state.buildings) {
-      ctx.fillStyle = '#6a6a78';
-      for (const b of state.buildings) {
-        const [bx, by] = toMap(b.x, b.z);
-        ctx.fillRect(bx - 2, by - 2, 4, 4);
-      }
-    }
-    // Mission beacon.
-    if (state.marker) {
-      const [mx, my] = toMap(state.marker.x, state.marker.z);
-      ctx.fillStyle = '#ffd24a';
-      ctx.beginPath();
-      ctx.moveTo(mx, my - 5);
-      ctx.lineTo(mx + 5, my);
-      ctx.lineTo(mx, my + 5);
-      ctx.lineTo(mx - 5, my);
-      ctx.closePath();
-      ctx.fill();
-    }
-    // Traffic as white dots, police as red dots.
-    if (state.traffic) {
-      ctx.fillStyle = '#ffffff';
-      for (const t of state.traffic) {
-        const [tx, ty] = toMap(t.x, t.z);
-        ctx.fillRect(tx - 1, ty - 1, 2, 2);
-      }
-    }
-    if (state.police) {
-      ctx.fillStyle = '#ff4040';
-      for (const p of state.police) {
-        const [px, py] = toMap(p.x, p.z);
-        ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    // The player: a yellow arrow pointing along the heading.
-    const [px, py] = toMap(state.playerX, state.playerZ);
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(state.heading);
-    ctx.fillStyle = '#ffd24a';
-    ctx.beginPath();
-    ctx.moveTo(0, -6);
-    ctx.lineTo(4, 5);
-    ctx.lineTo(0, 2);
-    ctx.lineTo(-4, 5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-    ctx.restore();
-    // The ring around the minimap.
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(R, R, R - 1, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
+// DOM HUD for Perla Bay: mission panel, wanted stars, money, dispatch list,
+// weapon slots, minimap, speed, health/armour, respect, dialogue, radio, toast.
+export function createHud(root) {
+  const el = document.createElement('div');
+  el.id = 'hud';
+  el.innerHTML = `
+  <div id="hud-top">
+    <div id="hud-mission"><div id="hud-mission-name">—</div><div id="hud-mission-stage">—</div><div id="hud-mission-timer"></div></div>
+    <div id="hud-stars" aria-label="wanted level"></div>
+    <div id="hud-money">$0</div>
+  </div>
+  <div id="hud-left">
+    <div id="hud-dispatch"><div class="hud-title">DISPATCH</div><div id="hud-dispatch-list"></div></div>
+    <div id="hud-weapons"><div class="hud-title">WEAPONS</div><div id="hud-weapon-list"></div></div>
+  </div>
+  <div id="hud-right">
+    <canvas id="hud-minimap" width="150" height="150"></canvas>
+    <div id="hud-speed"><span id="hud-speed-num">0</span><span id="hud-speed-unit">km/h</span><div id="hud-car-name">ON FOOT</div><div id="hud-car-cond">COND 100%</div></div>
+  </div>
+  <div id="hud-bottom">
+    <div id="hud-vitals"><div id="hud-health">HEALTH <span class="bar"><i id="hud-health-bar"></i></span></div><div id="hud-armour">ARMOUR <span class="bar"><i id="hud-armour-bar"></i></span></div><div id="hud-respect">RESPECT <span id="hud-respect-rank">ROOKIE</span> <span id="hud-respect-xp"></span></div></div>
+    <div id="hud-dialogue"></div>
+    <div id="hud-radio"><span id="hud-radio-station">—</span><span id="hud-radio-song">—</span></div>
+  </div>
+  <div id="hud-toast"></div>
+  <div id="hud-hint"></div>`;
+  root.appendChild(el);
   return {
-    els,
-    setText,
-    setStars,
-    drawMinimap,
-    // A short message that fades after a few seconds.
-    toast(text, ms) {
-      if (!els.toast) return;
-      els.toast.textContent = text;
-      els.toast.classList.add('show');
-      if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => els.toast.classList.remove('show'), ms || 3200);
-    },
-    // Show a line of dialogue with the speaker's portrait.
-    showDialogue(who, text, color) {
-      if (!els.dialogue) return;
-      setText(els.dialogueWho, 'dlgWho', who);
-      setText(els.dialogueText, 'dlgText', text);
-      if (els.dialoguePortrait) {
-        els.dialoguePortrait.textContent = who.split(' ').map((w) => w[0]).join('').slice(0, 2);
-        els.dialoguePortrait.style.background = color || '#c96a5a';
-      }
-      els.dialogue.classList.add('show');
-    },
-    hideDialogue() {
-      if (els.dialogue) els.dialogue.classList.remove('show');
-    },
-    setPrompt(text) {
-      setText(els.prompt, 'prompt', text || '');
-      if (els.prompt) els.prompt.classList.toggle('show', !!text);
-    },
-    showStart() {
-      if (els.startScreen) els.startScreen.classList.add('show');
-      if (els.pauseScreen) els.pauseScreen.classList.remove('show');
-      if (els.bustedScreen) els.bustedScreen.classList.remove('show');
-    },
-    hideStart() {
-      if (els.startScreen) els.startScreen.classList.remove('show');
-    },
-    showPause() {
-      if (els.pauseScreen) els.pauseScreen.classList.add('show');
-    },
-    hidePause() {
-      if (els.pauseScreen) els.pauseScreen.classList.remove('show');
-    },
-    showBusted(text) {
-      if (els.bustedText) els.bustedText.textContent = text;
-      if (els.bustedScreen) els.bustedScreen.classList.add('show');
-    },
-    hideBusted() {
-      if (els.bustedScreen) els.bustedScreen.classList.remove('show');
-    },
+    el,
+    missionName: el.querySelector('#hud-mission-name'),
+    missionStage: el.querySelector('#hud-mission-stage'),
+    missionTimer: el.querySelector('#hud-mission-timer'),
+    stars: el.querySelector('#hud-stars'),
+    money: el.querySelector('#hud-money'),
+    dispatchList: el.querySelector('#hud-dispatch-list'),
+    weaponList: el.querySelector('#hud-weapon-list'),
+    minimap: el.querySelector('#hud-minimap'),
+    speedNum: el.querySelector('#hud-speed-num'),
+    carName: el.querySelector('#hud-car-name'),
+    carCond: el.querySelector('#hud-car-cond'),
+    healthBar: el.querySelector('#hud-health-bar'),
+    armourBar: el.querySelector('#hud-armour-bar'),
+    respectRank: el.querySelector('#hud-respect-rank'),
+    respectXp: el.querySelector('#hud-respect-xp'),
+    dialogue: el.querySelector('#hud-dialogue'),
+    radioStation: el.querySelector('#hud-radio-station'),
+    radioSong: el.querySelector('#hud-radio-song'),
+    toast: el.querySelector('#hud-toast'),
+    hint: el.querySelector('#hud-hint'),
   };
 }
 
-// The per-frame HUD update. `state` carries everything the game knows:
-// mission, wanted, money, dispatch, weapons, speed, health, respect, radio.
-// The minimap is redrawn from live positions every frame.
-export function updateHud(hud, state) {
-  const { els, setText, setStars, drawMinimap } = hud;
-  if (state.mission) {
-    els.missionPanel.classList.add('show');
-    setText(els.missionTitle, 'mTitle', state.mission.title);
-    setText(els.missionStage, 'mStage', `Stage ${state.mission.stage} / ${state.mission.stages}`);
-    setText(els.missionText, 'mText', state.mission.text);
-    if (state.mission.timeLeft > 0) {
-      els.missionTimer.classList.add('show');
-      setText(els.missionTimer, 'mTimer', `${Math.ceil(state.mission.timeLeft)}s`);
-      els.missionTimer.classList.toggle('urgent', state.mission.timeLeft < 15);
-    } else {
-      els.missionTimer.classList.remove('show');
-    }
-    setText(els.missionNext, 'mNext', state.mission.next || '');
-  } else {
-    els.missionPanel.classList.remove('show');
-  }
-  setStars(state.wanted);
-  setText(els.money, 'money', `$${Math.floor(state.money).toLocaleString('en-US')}`);
-  if (els.dispatchList) {
-    const key = state.dispatch.map((d) => `${d.callsign}:${d.tactic}:${d.dist}`).join('|');
-    if (hud._dispatchKey !== key) {
-      hud._dispatchKey = key;
-      els.dispatchList.innerHTML = state.dispatch
-        .map((d) => `<div class="dispatch-row"><span class="callsign">${d.callsign}</span><span class="tactic">${d.tactic}</span><span class="dist">${d.dist} m</span></div>`)
-        .join('') || '<div class="dispatch-row quiet">No units responding.</div>';
-    }
-  }
-  els.weaponSlots.forEach((slot, i) => {
-    if (!slot) return;
-    slot.classList.toggle('active', state.weaponIndex === i);
-    const w = state.weapons[i];
-    setText(slot.querySelector('.weapon-name'), `wname${i}`, w.name);
-    setText(slot.querySelector('.weapon-ammo'), `wammo${i}`, w.ammo === Infinity ? '∞' : String(w.ammo));
-  });
-  if (state.inCar) {
-    els.speedWrap.classList.add('show');
-    els.carPanel.classList.add('show');
-    setText(els.speed, 'speed', String(Math.round(Math.abs(state.speed) * 2.6)));
-    setText(els.carName, 'carName', state.carName || '');
-    const cond = Math.max(0, Math.round(state.carCondition));
-    if (hud._cond !== cond) {
-      hud._cond = cond;
-      els.carConditionFill.style.width = `${cond}%`;
-      els.carConditionFill.classList.toggle('low', cond < 30);
-    }
-    setText(els.carConditionText, 'condText', `${cond}%`);
-  } else {
-    els.speedWrap.classList.remove('show');
-    els.carPanel.classList.remove('show');
-  }
-  const hp = Math.max(0, Math.round(state.health));
-  if (hud._hp !== hp) {
-    hud._hp = hp;
-    els.healthFill.style.width = `${hp}%`;
-    els.healthFill.classList.toggle('low', hp < 30);
-  }
-  const ar = Math.max(0, Math.round(state.armour));
-  if (hud._ar !== ar) {
-    hud._ar = ar;
-    els.armourFill.style.width = `${ar}%`;
-  }
-  setText(els.respectRank, 'rank', state.respectRank);
-  const xpPct = Math.round((state.respectXp / state.respectXpNext) * 100);
-  if (hud._xp !== xpPct) {
-    hud._xp = xpPct;
-    els.respectXpFill.style.width = `${Math.min(100, xpPct)}%`;
-  }
-  setText(els.radioStation, 'radio', state.radioStation);
-  setText(els.radioSong, 'song', state.radioSong);
-  drawMinimap(state);
-}
-
-// Respect ranks: the ladder the player climbs with mission XP.
-export const RESPECT_RANKS = [
-  { name: 'Newcomer', xp: 0 },
-  { name: 'Street Runner', xp: 150 },
-  { name: 'Wheelman', xp: 400 },
-  { name: 'Fixer', xp: 800 },
-  { name: 'Perla Legend', xp: 1500 },
+const WEAPONS = [
+  { name: 'FISTS', ammo: '∞' },
+  { name: 'PISTOL', ammo: '42' },
+  { name: 'SMG', ammo: '120' },
+  { name: 'SHOTGUN', ammo: '18' },
 ];
 
-export function respectFor(xp) {
-  let rank = RESPECT_RANKS[0];
-  let next = RESPECT_RANKS[1] || { name: '', xp: Infinity };
-  for (let i = 0; i < RESPECT_RANKS.length; i += 1) {
-    if (xp >= RESPECT_RANKS[i].xp) {
-      rank = RESPECT_RANKS[i];
-      next = RESPECT_RANKS[i + 1] || { name: '', xp: Infinity };
-    }
+const RANKS = ['ROOKIE', 'HUSTLER', 'RUNNER', 'FIXER', 'KINGPIN'];
+export function respectRank(xp) {
+  if (xp >= 4000) return 'KINGPIN';
+  if (xp >= 2000) return 'FIXER';
+  if (xp >= 900) return 'RUNNER';
+  if (xp >= 300) return 'HUSTLER';
+  return 'ROOKIE';
+}
+export function rankIndex(xp) { return RANKS.indexOf(respectRank(xp)); }
+
+let toastTimer = 0;
+export function showToast(hud, text, ms = 4200) {
+  hud.toast.textContent = text;
+  hud.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => hud.toast.classList.remove('show'), ms);
+}
+
+let dialogueTimer = 0;
+export function showDialogue(hud, text, ms = 6000) {
+  hud.dialogue.textContent = text;
+  hud.dialogue.classList.add('show');
+  clearTimeout(dialogueTimer);
+  dialogueTimer = setTimeout(() => hud.dialogue.classList.remove('show'), ms);
+}
+export function updateHud(hud, s) {
+  // s: {missionName, missionStage, missionTimer, wanted, money, dispatch[],
+  //     weaponIndex, speedKmh, carName, condition, health, armour, respectXp,
+  //     radioStation, radioSong, hint, player, city}
+  hud.missionName.textContent = s.missionName || '—';
+  hud.missionStage.textContent = s.missionStage || '—';
+  hud.missionTimer.textContent = s.missionTimer || '';
+  hud.stars.innerHTML = '';
+  for (let i = 0; i < 5; i++) {
+    const star = document.createElement('span');
+    star.textContent = '★';
+    star.className = i < s.wanted ? 'star on' : 'star';
+    hud.stars.appendChild(star);
   }
-  return { rank: rank.name, xpNext: next.xp === Infinity ? rank.xp + 500 : next.xp };
+  hud.money.textContent = '$' + Math.round(s.money).toLocaleString('en-US');
+  hud.dispatchList.innerHTML = s.dispatch.length
+    ? s.dispatch.map((d) => `<div class="dispatch-row"><b>${d.callsign}</b><span>${d.tactic}</span><i>${d.dist}m</i></div>`).join('')
+    : '<div class="dispatch-row"><span>All quiet on the bay.</span></div>';
+  hud.weaponList.innerHTML = WEAPONS.map((w, i) =>
+    `<div class="weapon-row${i === s.weaponIndex ? ' active' : ''}"><b>${w.name}</b><i>${w.ammo}</i></div>`).join('');
+  hud.speedNum.textContent = String(Math.round(s.speedKmh));
+  hud.carName.textContent = s.carName || 'ON FOOT';
+  hud.carCond.textContent = 'COND ' + Math.round(s.condition) + '%';
+  hud.healthBar.style.width = Math.max(0, Math.min(100, s.health)) + '%';
+  hud.armourBar.style.width = Math.max(0, Math.min(100, s.armour)) + '%';
+  hud.respectRank.textContent = respectRank(s.respectXp);
+  hud.respectXp.textContent = s.respectXp + ' XP';
+  hud.radioStation.textContent = s.radioStation || '—';
+  hud.radioSong.textContent = s.radioSong || '—';
+  hud.hint.textContent = s.hint || '';
+  drawMinimap(hud, s);
+}
+
+function drawMinimap(hud, s) {
+  const c = hud.minimap;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const half = 340;
+  const px = (x) => ((x + half) / (half * 2)) * W;
+  const py = (z) => ((z + half) / (half * 2)) * H;
+  ctx.clearRect(0, 0, W, H);
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#0e1a24'; ctx.fill();
+  ctx.save();
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 2, 0, Math.PI * 2); ctx.clip();
+  // sea + beach
+  ctx.fillStyle = '#1d6f8e'; ctx.fillRect(0, py(150), W, H - py(150));
+  ctx.fillStyle = '#d9c193'; ctx.fillRect(0, py(150), W, py(215) - py(150));
+  // canal
+  ctx.fillStyle = '#2a7d9e'; ctx.fillRect(0, py(-49), W, py(-31) - py(-49));
+  // roads (grid hint)
+  ctx.strokeStyle = '#3a3d42'; ctx.lineWidth = 2;
+  for (let x = -300; x <= 300; x += 46) { ctx.beginPath(); ctx.moveTo(px(x), 0); ctx.lineTo(px(x), H); ctx.stroke(); }
+  for (let z = -300; z <= 140; z += 46) { ctx.beginPath(); ctx.moveTo(0, py(z)); ctx.lineTo(W, py(z)); ctx.stroke(); }
+  // mission marker
+  if (s.marker) {
+    ctx.fillStyle = '#ffd94a';
+    ctx.beginPath(); ctx.arc(px(s.marker.x), py(s.marker.z), 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#ffd94a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px(s.marker.x), py(s.marker.z), 8, 0, Math.PI * 2); ctx.stroke();
+  }
+  // police dots
+  ctx.fillStyle = '#ff4444';
+  for (const u of s.policeDots || []) { ctx.beginPath(); ctx.arc(px(u.x), py(u.z), 2.5, 0, Math.PI * 2); ctx.fill(); }
+  // player arrow
+  const pxx = px(s.player.x), pzz = py(s.player.z);
+  ctx.save();
+  ctx.translate(pxx, pzz);
+  ctx.rotate(Math.atan2(Math.sin(s.player.heading), Math.cos(s.player.heading)) + Math.PI);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4.5, 5); ctx.lineTo(-4.5, 5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 2, 0, Math.PI * 2);
+  ctx.strokeStyle = '#e8e2d2'; ctx.lineWidth = 2; ctx.stroke();
 }
