@@ -3,130 +3,75 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Perla Bay — Open World Crime</title>
+<meta name="description" content="PERLA BAY — a 3D open-world crime game in Bahía Perla. Steal cars, outrun the police, run 8 story missions. Playable offline in a desktop browser.">
+<title>PERLA BAY — Bahía Perla</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #14101c;
-    font-family: "Segoe UI", system-ui, sans-serif; color: #f0ead8; }
-  #game { display: block; width: 100vw; height: 100vh; }
-  #hud-root { position: fixed; inset: 0; pointer-events: none; font-size: 13px; }
-  .panel { position: absolute; background: rgba(12, 10, 18, 0.72); border: 1px solid rgba(255, 210, 122, 0.25);
-    border-radius: 8px; padding: 8px 10px; backdrop-filter: blur(2px); }
-  .panel h3 { color: #ffd27a; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 4px; }
-  .dim { color: #9a94a8; }
-  .row { display: flex; justify-content: space-between; gap: 14px; line-height: 1.5; }
-  .row.active { background: rgba(255, 210, 122, 0.18); border-radius: 3px; padding: 0 3px; }
-  #hud-mission { top: 12px; left: 12px; width: 290px; }
-  #hud-mission-name { font-weight: 700; font-size: 14px; }
-  #hud-mission-stage { color: #cfc8b8; margin-top: 2px; }
-  #hud-dispatch { top: 108px; left: 12px; width: 230px; }
-  #hud-weapons { top: 246px; left: 12px; width: 150px; }
-  #hud-top-right { position: absolute; top: 12px; right: 12px; text-align: right; width: 164px; }
-  #hud-stars { font-size: 22px; letter-spacing: 2px; }
-  #hud-money { font-size: 20px; font-weight: 800; color: #7dd87d; margin-top: 2px; white-space: nowrap; }
-  #hud-minimap { width: 148px; height: 148px; border-radius: 50%; border: 2px solid rgba(255, 210, 122, 0.5);
-    margin-top: 6px; background: #1a1a24; }
-  #hud-speed { bottom: 12px; right: 12px; text-align: right; min-width: 130px; }
-  #hud-speed-num { font-size: 34px; font-weight: 800; line-height: 1; }
-  #hud-speed small { color: #9a94a8; font-size: 12px; }
-  #hud-car-name { color: #ffd27a; font-weight: 700; font-size: 14px; }
-  #hud-car-cond { color: #9a94a8; }
-  #hud-vitals { bottom: 12px; left: 12px; width: 210px; }
-  .bar { height: 8px; background: #2a2438; border-radius: 4px; overflow: hidden; margin: 3px 0 7px; }
-  .bar > div { height: 100%; }
-  #hud-health-fill { background: #58c96b; width: 100%; }
-  #hud-armour-fill { background: #5a9ac9; width: 60%; }
-  #hud-respect { color: #ffd27a; font-weight: 700; }
-  #hud-radio { bottom: 12px; right: 170px; text-align: right; white-space: pre-line; }
-  #hud-radio b { color: #ffd27a; }
-  #hud-toast { position: absolute; left: 50%; top: 58%; transform: translateX(-50%);
-    background: rgba(12, 10, 18, 0.85); border: 1px solid #ffd27a; border-radius: 8px;
-    padding: 10px 18px; font-size: 16px; font-weight: 700; opacity: 0; transition: opacity 0.4s;
-    white-space: nowrap; }
-  #hud-dialogue { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
-    width: 560px; max-width: 80vw; display: none; }
-  #hud-dialogue-name { color: #ffd27a; font-weight: 700; margin-bottom: 3px; }
-  #hud-controls { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-    color: #9a94a8; font-size: 12px; background: rgba(12, 10, 18, 0.6); padding: 4px 12px; border-radius: 12px; }
-  #hud-time { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    background: rgba(12, 10, 18, 0.72); border: 1px solid rgba(255, 210, 122, 0.25);
-    border-radius: 8px; padding: 5px 12px; font-weight: 700; }
-  #start-screen, #pause-menu { position: fixed; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 14px;
-    background: linear-gradient(160deg, rgba(20, 12, 32, 0.94), rgba(60, 20, 40, 0.92)); z-index: 10; }
-  #pause-menu { display: none; }
-  #start-screen h1 { font-size: 54px; letter-spacing: 4px; color: #ffd27a; text-shadow: 0 4px 24px rgba(255, 150, 60, 0.5); }
-  #start-screen h2 { font-size: 17px; color: #e8ddc0; font-weight: 400; }
-  #start-screen button, #pause-menu button { pointer-events: auto; cursor: pointer;
-    background: #ffd27a; color: #241a08; border: none; border-radius: 8px;
-    font-size: 18px; font-weight: 800; padding: 12px 34px; }
-  #start-screen button:hover, #pause-menu button:hover { background: #ffe1a0; }
-  #continue-button { display: none; background: #3a3a4a !important; color: #f0ead8 !important; }
-  #start-screen .keys { color: #b8b0a0; font-size: 13px; line-height: 1.9; text-align: center; }
-  #start-screen .keys b { color: #ffd27a; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1218; font-family: 'Segoe UI', Arial, sans-serif; }
+  #game { position: fixed; inset: 0; }
+  #game canvas { display: block; width: 100%; height: 100%; }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; font-size: 13px; }
+  .hud-panel { position: absolute; background: rgba(12, 10, 20, 0.72); border: 1px solid rgba(255, 216, 128, 0.45); border-radius: 6px; padding: 8px 10px; backdrop-filter: blur(2px); }
+  .hud-mission { top: 12px; left: 12px; width: 340px; }
+  .hud-mission-title { font-size: 16px; font-weight: 800; color: #ffd880; letter-spacing: 0.4px; }
+  .hud-mission-stage { font-size: 11px; color: #9ec8e8; margin-top: 2px; font-weight: 700; }
+  .hud-mission-timer { font-size: 12px; color: #fff; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .hud-mission-objective { font-size: 12px; color: #e8e8e8; margin-top: 4px; line-height: 1.35; }
+  .hud-wanted { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font-size: 30px; letter-spacing: 6px; text-shadow: 0 2px 8px rgba(0,0,0,0.8); }
+  .hud-wanted .hud-star { color: rgba(255,255,255,0.22); }
+  .hud-wanted .hud-star.lit { color: #ffd880; }
+  .hud-wanted.hot .hud-star.lit { color: #ff5040; }
+  .hud-top-right { top: 12px; right: 12px; text-align: right; min-width: 210px; }
+  .hud-money { font-size: 20px; font-weight: 800; color: #7ae88a; }
+  .hud-clock { font-size: 11px; color: #ffb060; margin-top: 2px; font-weight: 700; }
+  .hud-radio { font-size: 11px; color: #e8a0d8; margin-top: 2px; }
+  .hud-dispatch { top: 118px; right: 12px; width: 250px; }
+  .hud-dispatch-title { font-size: 11px; font-weight: 800; color: #ff8080; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,128,128,0.35); padding-bottom: 4px; }
+  .hud-dispatch-row { font-size: 11px; padding: 3px 0; font-family: Consolas, monospace; color: #ffd8d8; }
+  .hud-dispatch-quiet { color: #8a8a92; }
+  .hud-weapons { position: absolute; top: 130px; left: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .hud-weapon { background: rgba(12,10,20,0.72); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; padding: 4px 8px; font-size: 11px; display: flex; gap: 8px; }
+  .hud-weapon.active { border-color: #ffd880; background: rgba(60,45,10,0.8); }
+  .hud-weapon-key { color: #ffd880; font-weight: 800; }
+  .hud-weapon-name { font-weight: 700; }
+  .hud-weapon-ammo { color: #9ec8e8; margin-left: auto; font-family: Consolas, monospace; }
+  .hud-map-wrap { position: absolute; left: 12px; bottom: 12px; text-align: center; }
+  .hud-minimap { border-radius: 50%; border: 2px solid rgba(255,216,128,0.7); background: #22222c; display: block; }
+  .hud-map-label { font-size: 10px; color: #ffd880; font-weight: 700; margin-top: 4px; letter-spacing: 1px; }
+  .hud-vehicle { right: 12px; bottom: 12px; text-align: right; min-width: 230px; }
+  .hud-speed { font-size: 34px; font-weight: 800; line-height: 1; color: #fff; display: inline-block; }
+  .hud-speed-unit { display: inline-block; font-size: 12px; color: #9ec8e8; margin-left: 4px; }
+  .hud-car { font-size: 13px; font-weight: 800; color: #ffd880; margin-top: 2px; }
+  .hud-condition { font-size: 11px; color: #c8c8d0; }
+  .hud-bars { margin-top: 6px; }
+  .hud-bar { height: 10px; background: rgba(255,255,255,0.15); border-radius: 3px; margin-top: 3px; position: relative; overflow: hidden; }
+  .hud-bar-label { position: absolute; left: 4px; top: 0; font-size: 8px; line-height: 10px; color: #fff; z-index: 1; font-weight: 700; }
+  .hud-bar-fill { height: 100%; background: #4ac86a; width: 100%; }
+  .hud-bar-ar .hud-bar-fill { background: #5a9ae8; }
+  .hud-respect { font-size: 11px; color: #e8a0d8; font-weight: 700; margin-top: 5px; }
+  .hud-dialogue { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: 560px; max-width: 72vw; background: rgba(12,10,20,0.82); border: 1px solid rgba(255,216,128,0.5); border-radius: 6px; padding: 10px 14px; }
+  .hud-dialogue-name { font-size: 12px; font-weight: 800; color: #ffd880; }
+  .hud-dialogue-text { font-size: 14px; line-height: 1.4; margin-top: 3px; }
+  .hud-toast { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(12,10,20,0.85); border: 1px solid #ffd880; border-radius: 4px; padding: 7px 16px; font-size: 14px; font-weight: 700; color: #ffd880; white-space: nowrap; }
+  .hud-start { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,8,24,0.55), rgba(20,8,24,0.82)); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; text-align: center; }
+  .hud-start-title { font-size: 64px; font-weight: 900; letter-spacing: 6px; color: #ffd880; text-shadow: 0 4px 24px rgba(255,120,40,0.6); }
+  .hud-start-sub { font-size: 18px; color: #ffb060; margin-top: 6px; }
+  .hud-start-desc { font-size: 14px; color: #e8e8e8; max-width: 560px; margin-top: 14px; line-height: 1.5; }
+  .hud-start-btn { margin-top: 26px; font-size: 20px; font-weight: 800; color: #1a1218; background: #ffd880; border: none; border-radius: 8px; padding: 14px 34px; cursor: pointer; pointer-events: auto; }
+  .hud-start-btn:hover { background: #ffe8a0; }
+  .hud-start-hints { font-size: 12px; color: #c8c8d0; margin-top: 18px; }
+  .hud-start-save { font-size: 12px; color: #7ae88a; margin-top: 8px; }
+  .hud-pause { position: absolute; inset: 0; background: rgba(10,6,14,0.7); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+  .hud-pause-title { font-size: 44px; font-weight: 900; color: #ffd880; letter-spacing: 4px; }
+  .hud-pause-text { font-size: 14px; color: #e8e8e8; margin-top: 10px; }
 </style>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.min.js" } }
 </script>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="hud-root">
-  <div class="panel" id="hud-mission">
-    <h3>MISSION</h3>
-    <div id="hud-mission-name">1. First Keys — Celia Mar</div>
-    <div id="hud-mission-stage">Talk to the crew</div>
-  </div>
-  <div class="panel" id="hud-dispatch">
-    <h3>DISPATCH</h3>
-    <div class="dim">All quiet on the bay.</div>
-  </div>
-  <div class="panel" id="hud-weapons">
-    <h3>WEAPONS</h3>
-  </div>
-  <div id="hud-top-right">
-    <div id="hud-stars"><span>☆</span><span>☆</span><span>☆</span><span>☆</span><span>☆</span></div>
-    <div id="hud-money">$250</div>
-    <canvas id="hud-minimap" width="148" height="148"></canvas>
-  </div>
-  <div class="panel" id="hud-vitals">
-    <h3>HEALTH</h3>
-    <div class="bar"><div id="hud-health-fill"></div></div>
-    <h3>ARMOUR</h3>
-    <div class="bar"><div id="hud-armour-fill"></div></div>
-    <div id="hud-respect">RESPECT ROOKIE 0 XP</div>
-  </div>
-  <div class="panel" id="hud-speed">
-    <div><span id="hud-speed-num">0</span> <small>km/h</small></div>
-    <div id="hud-car-name">ON FOOT</div>
-    <div id="hud-car-cond">COND 100%</div>
-  </div>
-  <div class="panel" id="hud-radio"><b>PERLA FM 88.4</b><br>Marina Lights — Los Faros</div>
-  <div id="hud-toast"></div>
-  <div class="panel" id="hud-dialogue">
-    <div id="hud-dialogue-name"></div>
-    <div id="hud-dialogue-text"></div>
-  </div>
-  <div id="hud-controls">WASD drive &middot; SPACE handbrake &middot; F exit &middot; Q radio &middot; 1-4 weapons</div>
-  <div id="hud-time">18:00</div>
-</div>
-
-<div id="start-screen">
-  <h1>PERLA BAY</h1>
-  <h2>Open World Crime — Bahía Perla, a sun-soaked coastal city</h2>
-  <button id="start-button">START</button>
-  <button id="continue-button">CONTINUE</button>
-  <div class="keys">
-    <b>WASD</b> move / drive &nbsp; <b>SHIFT</b> run &nbsp; <b>F</b> enter &amp; exit car &nbsp; <b>E</b> crew ability<br>
-    <b>SPACE</b> handbrake &nbsp; <b>Q</b> radio &nbsp; <b>1–4</b> weapons &nbsp; <b>P</b> pause &nbsp; <b>M</b> mute<br>
-    Eight story missions. Five wanted stars. One bay to own.
-  </div>
-</div>
-<div id="pause-menu">
-  <h1 style="font-size:36px;color:#ffd27a;">PAUSED</h1>
-  <button id="resume-button">RESUME</button>
-  <div class="keys">Progress is saved automatically.</div>
-</div>
+<div id="game"></div>
+<div id="hud"></div>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
